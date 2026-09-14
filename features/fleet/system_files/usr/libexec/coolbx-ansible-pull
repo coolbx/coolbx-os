@@ -33,14 +33,18 @@ STATUS=/var/lib/coolbx/ansible-status.json
 mkdir -p /var/lib/coolbx /var/lib/coolbx/ansible-checkout
 echo "coolbx-ansible-pull: rol=${ROLE} profiel=${PROFILE:-<rol-standaard>} kanaal=${CHANNEL} (branch ${BRANCH}) serienummer=${SERIAL:-<geen>} host=${HOSTN}"
 
-# -o: alleen draaien als de repo wijzigde (spaart server + CPU).
+# -o: alleen draaien als de repo wijzigde (spaart server + CPU). ANSIBLE_PULL_EXTRA_ARGS (ansible.conf)
+# voor bv. --full (servers zonder shallow-clone-ondersteuning).
+# shellcheck disable=SC2086
 /usr/bin/ansible-pull \
-  -U "$URL" -C "$BRANCH" -o -d /var/lib/coolbx/ansible-checkout \
+  -U "$URL" -C "$BRANCH" -o -d /var/lib/coolbx/ansible-checkout ${ANSIBLE_PULL_EXTRA_ARGS:-} \
   "${VAULT[@]}" \
   -e "coolbx_role=${ROLE}" -e "coolbx_profile=${PROFILE}" -e "coolbx_channel=${CHANNEL}" \
   -e "coolbx_serial=${SERIAL}" -e "coolbx_hostname=${HOSTN}" \
   "${ANSIBLE_PULL_PLAYBOOK:-local.yml}"
 RC=$?
+# ansible-pull geeft 0 terug als de repo-fetch zelf faalt → zelf controleren dat de checkout bestaat.
+[ -f /var/lib/coolbx/ansible-checkout/local.yml ] || { echo "coolbx-ansible-pull: checkout ontbreekt (clone mislukt?)" >&2; RC=${RC:-1}; [ "$RC" -eq 0 ] && RC=1; }
 # Gestructureerde status voor coolbx-status (lokaal; UI-klaar).
 printf '{"time":"%s","rc":%d,"role":"%s","profile":"%s","channel":"%s","branch":"%s","serial":"%s","vault":%s}\n' \
   "$(date -Is)" "$RC" "$ROLE" "$PROFILE" "$CHANNEL" "$BRANCH" "$SERIAL" "$([ ${#VAULT[@]} -gt 0 ] && echo true || echo false)" > "$STATUS"

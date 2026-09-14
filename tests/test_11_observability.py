@@ -8,8 +8,8 @@ def test_status_command_present(vm):
 def test_status_runs_and_reports(vm):
     out = vm.ssh_sudo("coolbx-status")
     # de kernsecties moeten aanwezig zijn
-    for label in ("OS-image", "Boot-status", "Update-timer", "Kiosk-launcher",
-                  "Attestatie-daemon", "Gefaalde units"):
+    for label in ("OS-image", "Boot-status", "Update-timer", "Rol / profiel / kanaal",
+                  "Config-pull", "Gefaalde units"):
         assert label in out, f"sectie {label!r} ontbreekt in coolbx-status:\n{out}"
 
 

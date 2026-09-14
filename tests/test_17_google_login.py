@@ -80,12 +80,14 @@ def sssd(vm):
 
 
 def test_sssd_config_root_only(sssd):
-    assert sssd.ssh_sudo("stat -c '%a' /etc/sssd/conf.d/coolbx-google.conf").strip() == "600"
+    # root:sssd 0600 of 0640 (sssd zet zelf 640 voor z'n eigen groep) — nooit wereld-leesbaar
+    mode, grp = sssd.ssh_sudo("stat -c '%a %G' /etc/sssd/conf.d/coolbx-google.conf").split()
+    assert mode in ("600", "640") and grp in ("root", "sssd"), (mode, grp)
     assert not sssd.ssh_ok("cat /etc/sssd/conf.d/coolbx-google.conf")
 
 
 def test_student_resolves_via_nss(sssd):
-    out = wait_for(lambda: sssd.ssh(f"getent passwd {LLN} || true").strip(), timeout=60, interval=3, desc="getent leerling")
+    out = wait_for(lambda: sssd.ssh(f"getent passwd {LLN} || true").strip(), timeout=150, interval=5, desc="getent leerling")
     assert out.startswith(f"{LLN}:"), out
     assert f"/home/{LLN}" in out
 

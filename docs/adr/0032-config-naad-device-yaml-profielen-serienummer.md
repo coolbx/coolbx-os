@@ -16,9 +16,10 @@ Drie lagen, elk met een eigen bron (zie ROADMAP §3):
    ingevuld door de installer). De **config-repo** (`github.com/coolbx/coolbx-ansible`) bevat
    `profiles/<naam>.yml` (basis + specifieke lagen: kiosk-apps, dconf, Chrome-policies, flatpaks,
    printers, google-login-groepen) en een **platte `devices.yml`** met per serienummer: naam, profiel,
-   eventueel kanaal/powerwash-vlag. Resolutie: `devices.yml`-match op serienummer (BIOS, hostnaam als
-   fallback in VM's) > `device.yaml`-profiel > `<rol>-standaard`. Lokaal `device.yaml` wint altijd als
-   `profile` expliciet is gezet ("lokaal overschrijven").
+   eventueel kanaal/powerwash-vlag. Resolutie (in deze volgorde, eerste treffer wint): (1) `devices.yml`-
+   match op serienummer (BIOS; hostnaam via veld `name` als fallback in VM's), (2) een expliciet
+   `profile` in het lokale `device.yaml`, (3) `<rol>-standaard`. Een toestel dat in `devices.yml` staat,
+   volgt dus altijd git; "lokaal overschrijven" geldt voor toestellen die (nog) niet in de lijst staan.
 3. **Gebruiker**: Chrome-beleid uit de Google Admin-console; Google-groep → dconf-profiel-mapping in git.
 
 Motor: de bestaande `coolbx-ansible-pull` (fleet-feature), uitgebreid: leest `device.yaml` + serienummer,

@@ -111,8 +111,12 @@ default_shell = /bin/bash
 cache_credentials = true
 enumerate = false
 entry_cache_timeout = 5400
-ldap_network_timeout = 6
-ldap_opt_timeout = 8
+# Google's LDAP antwoordt soms traag (TLS-handshake + grote subbomen): ruime timeouts, anders
+# gaat SSSD bij de eerste hapering 'offline' en wacht het een minuut voor een nieuwe poging.
+ldap_network_timeout = 15
+ldap_opt_timeout = 30
+ldap_search_timeout = 30
+ldap_connection_expire_timeout = 900
 """
 
 
@@ -132,8 +136,14 @@ def main():
     fd = os.open(OUT, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(text)
-    for p in (CRT, KEY, ACCESS):
-        os.chmod(p, 0o600)
+    # sssd_be draait als gebruiker 'sssd' (Fedora ≥41) → cert/key/config root:sssd 0640;
+    # de toegangsgegevens blijven root-only (worden enkel door dit script gelezen).
+    import grp
+    sssd_gid = grp.getgrnam("sssd").gr_gid
+    for p in (CRT, KEY, OUT):
+        os.chown(p, 0, sssd_gid)
+        os.chmod(p, 0o640)
+    os.chmod(ACCESS, 0o600)
     # Fedora's authselect-sssd-profiel + oddjob-mkhomedir → home bij eerste aanmelding.
     subprocess.run(["systemctl", "enable", "--now", "oddjobd.service"], check=False, capture_output=True)
     subprocess.run(["systemctl", "enable", "sssd.service"], check=False, capture_output=True)
