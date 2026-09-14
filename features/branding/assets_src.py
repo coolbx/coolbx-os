@@ -12,8 +12,9 @@ def glyph_svg(size=512, tile=INK, sheet=PAPER, dot=MINT, tile_stroke=None, bare=
     if not bare:
         stroke = f' stroke="{tile_stroke}" stroke-width="3"' if tile_stroke else ""
         out.append(f'<rect x="6" y="6" width="108" height="108" rx="26" fill="{tile}"{stroke}/>')
-        out.append(f'<rect x="28" y="34" width="64" height="52" rx="10" fill="none" stroke="{sheet}" stroke-width="5"/>')
-        out.append(f'<circle cx="60" cy="60" r="8" fill="{dot}"/>')
+        # Leesbaar op 40 px (dock): groot vel, dikke lijn, duidelijke dot.
+        out.append(f'<rect x="20" y="30" width="80" height="60" rx="12" fill="none" stroke="{sheet}" stroke-width="7"/>')
+        out.append(f'<circle cx="60" cy="60" r="11" fill="{dot}"/>')
     else:
         out.append(f'<rect x="22" y="28" width="76" height="64" rx="12" fill="none" stroke="{sheet}" stroke-width="9"/>')
         out.append(f'<circle cx="60" cy="60" r="11" fill="{dot}"/>')

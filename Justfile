@@ -72,7 +72,12 @@ build-iso rol:
     VAULT_PASS="$(cat "${VAULT_PASS_FILE}")"
     ADMIN_HASH="$( [ -s "${ADMIN_HASH_FILE:-/nonexistent}" ] && cat "${ADMIN_HASH_FILE}" || true )"
     set +a
-    just build-role "{{ rol }}"
+    # REUSE_ROLE_IMAGE=1: bestaande localhost/coolbx-os:<rol> hergebruiken (scheelt de rol-build).
+    if [ "${REUSE_ROLE_IMAGE:-0}" = "1" ] && sudo podman image exists "localhost/{{ image_name }}:{{ rol }}"; then
+      echo ">> rol-image hergebruikt (REUSE_ROLE_IMAGE=1)"
+    else
+      just build-role "{{ rol }}"
+    fi
     mkdir -p output
     [ "${ISO_UNATTENDED:-0}" = "1" ] && echo "!! ONBEHEERDE ISO: wist bij het booten de eerste schijf ZONDER vraag (enkel voor de VM-test)" || true
     python3 - "{{ rol }}" > output/iso-{{ rol }}.toml <<'PY'
@@ -90,7 +95,8 @@ build-iso rol:
     PY
     chmod 0600 output/iso-{{ rol }}.toml
     echo ">> bootc-image-builder → anaconda-iso (rol {{ rol }})"
-    sudo podman run --rm --privileged --pull=newer \
+    # --network=host: de ISO-bouw depsolvet Anaconda-pakketten uit de Fedora-repo's (rootful podman heeft anders geen DNS).
+    sudo podman run --rm --privileged --pull=newer --network=host \
       --security-opt label=type:unconfined_t \
       -v "$(pwd)/output/iso-{{ rol }}.toml:/config.toml:ro" \
       -v "$(pwd)/output:/output" \

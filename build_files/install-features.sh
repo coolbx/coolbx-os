@@ -25,3 +25,9 @@ for feat in $FEATURES; do
     bash "${fdir}/install.sh"
   fi
 done
+
+# Icon-cache NA alle features (een feature die na 'branding' komt — bv. focus — voegt anders iconen toe
+# aan een al gebouwde cache; GTK vertrouwt die cache en vindt het icoon dan niet → generiek fallback-icoon).
+if command -v gtk-update-icon-cache >/dev/null 2>&1 && [ -d /usr/share/icons/hicolor ]; then
+  gtk-update-icon-cache -f -q /usr/share/icons/hicolor || echo "warn: icon-cache update mislukt"
+fi
