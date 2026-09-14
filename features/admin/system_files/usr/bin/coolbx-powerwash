@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Coolbx OS — powerwash / toestel wissen (ADR-0034).
+#   coolbx-powerwash request [--reboot|--reboot-if-idle]   zet de marker (root); herstart optioneel
+#   coolbx-powerwash cancel                                 marker weg
+#   coolbx-powerwash run                                    wordt door coolbx-powerwash.service vroeg in
+#                                                           de boot uitgevoerd als de marker bestaat
+# Wist: alle homes, SSSD-cache, AccountsService, NetworkManager-verbindingen, Coolbx-toestelstaat
+# (device.yaml, vault-pass, ansible-state, enrollment-token, kiosk-app-config), Flatpak-userdata
+# (zit in de homes), journal en /var/tmp. Het image, /etc/shadow (beheerderswachtwoord) en
+# systeemkritieke /etc-bestanden blijven. Geen GRUB-ingang.
+set -euo pipefail
+MARKER=/var/lib/coolbx/powerwash
+[ "$(id -u)" -eq 0 ] || { echo "coolbx-powerwash: root vereist" >&2; exit 1; }
+
+idle() {
+  # Geen actieve grafische gebruikerssessie (gdm zelf telt niet).
+  ! loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -vqx gdm
+}
+
+case "${1:-}" in
+  request)
+    mkdir -p "$(dirname "$MARKER")"; date -Is > "$MARKER"
+    echo "powerwash aangevraagd — wordt uitgevoerd bij de volgende opstart"
+    case "${2:-}" in
+      --reboot) systemctl reboot ;;
+      --reboot-if-idle) idle && systemctl reboot || echo "gebruiker actief — herstart uitgesteld" ;;
+    esac ;;
+  cancel) rm -f "$MARKER"; echo "powerwash geannuleerd" ;;
+  status) [ -f "$MARKER" ] && echo "aangevraagd op $(cat "$MARKER")" || echo "niet aangevraagd" ;;
+  run)
+    [ -f "$MARKER" ] || exit 0
+    rm -f "$MARKER"
+    echo "coolbx-powerwash: toestel wissen"
+    systemctl stop sssd.service 2>/dev/null || true
+    # Homes (bootc: /home → /var/home). Alles, ook de beheerder-home (account blijft).
+    for h in /var/home/* /home/*; do
+      [ -d "$h" ] && [ ! -L "$h" ] && rm -rf --one-file-system "$h"
+    done
+    rm -rf /var/lib/sss/db/* /var/lib/sss/mc/* /var/lib/sss/pubconf/* 2>/dev/null || true
+    rm -rf /var/lib/AccountsService/users/* /var/lib/AccountsService/icons/* 2>/dev/null || true
+    rm -f /etc/NetworkManager/system-connections/* 2>/dev/null || true
+    rm -f /etc/coolbx/device.yaml /etc/coolbx/vault-pass 2>/dev/null || true
+    rm -rf /etc/coolbx/kiosk-apps.d/* /etc/coolbx/google-login 2>/dev/null || true
+    rm -rf /etc/sssd/conf.d/coolbx-* /etc/sssd/coolbx-* 2>/dev/null || true
+    rm -f /etc/opt/chrome/policies/enrollment/* 2>/dev/null || true
+    rm -rf /var/lib/coolbx/* /var/lib/ansible-pull 2>/dev/null || true
+    rm -rf /var/log/journal/* /var/tmp/* 2>/dev/null || true
+    # Verse toestel-defaults (rol) terug uit het image.
+    systemd-tmpfiles --create 2>/dev/null || true
+    echo "coolbx-powerwash: klaar"
+    ;;
+  *) echo "gebruik: coolbx-powerwash request [--reboot|--reboot-if-idle] | cancel | status | run" >&2; exit 2 ;;
+esac

@@ -1,0 +1,11 @@
+# Coolbx OS — leerling-defaults (ADR-0030). Bescheiden: geen terminal/opdrachtregel, geen
+# gebruikerswissel (de sessie is persoonlijk), geen extensie-installatie. Vergrendeld via locks/.
+[org/gnome/desktop/lockdown]
+disable-command-line=true
+disable-user-switching=true
+
+[org/gnome/shell]
+allow-extension-installation=false
+
+[org/gnome/desktop/screensaver]
+lock-enabled=true

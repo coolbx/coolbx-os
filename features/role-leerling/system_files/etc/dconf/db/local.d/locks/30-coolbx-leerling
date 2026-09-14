@@ -1,0 +1,3 @@
+/org/gnome/desktop/lockdown/disable-command-line
+/org/gnome/desktop/lockdown/disable-user-switching
+/org/gnome/shell/allow-extension-installation

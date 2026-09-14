@@ -1,0 +1,14 @@
+# Voert een aangevraagde powerwash uit vóór de grafische laag start (ADR-0034).
+[Unit]
+Description=Coolbx: toestel wissen (powerwash) indien aangevraagd
+ConditionPathExists=/var/lib/coolbx/powerwash
+DefaultDependencies=no
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=gdm.service display-manager.service sssd.service NetworkManager.service coolbx-ansible-pull.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/coolbx-powerwash run
+
+[Install]
+WantedBy=sysinit.target

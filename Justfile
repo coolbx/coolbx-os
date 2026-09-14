@@ -2,8 +2,8 @@ export image_name := env("IMAGE_NAME", "coolbx-os")
 export default_tag := env("DEFAULT_TAG", "latest")
 export base_image := env("BASE_IMAGE", "quay.io/fedora/fedora-bootc:43")
 export features := env("FEATURES", "")
-# Volledige dev-set voor de lokale e2e-loop (ROADMAP v3 §3 "dev"): leerling-set + chromium + focus.
-export dev_features := env("DEV_FEATURES", "chrome chromium kiosk focus branding hardware fleet managed apps media-nonfree")
+# Volledige dev-set voor de lokale e2e-loop (ROADMAP v3 §3 "dev"); rol-sets: scripts/role-features.sh.
+export dev_features := env("DEV_FEATURES", `scripts/role-features.sh dev`)
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
 export rootfs := env("ROOTFS", "btrfs")
 
@@ -43,6 +43,20 @@ build-dev tag=default_tag:
       --build-arg FEATURES="{{ if features == "" { dev_features } else { features } }}" \
       --build-arg ENABLE_FIRSTBOOT_USER=1 \
       --tag "localhost/{{ image_name }}:{{ tag }}" .
+
+# ROL-image bouwen (ADR-0030): `just build-role leerling` → localhost/coolbx-os:leerling (prod, geen dev-naden).
+build-role rol tag="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    FEATS="$(scripts/role-features.sh "{{ rol }}")"
+    TAG="{{ if tag == "" { rol } else { tag } }}"
+    echo ">> rol-image {{ rol }} → localhost/{{ image_name }}:$TAG (features: $FEATS)"
+    sudo podman build --network=host \
+      --build-arg BASE_IMAGE="{{ base_image }}" \
+      --build-arg FEATURES="$FEATS" \
+      --build-arg FEATURES_CACHEBUST="$(date +%s)" \
+      --build-arg ENABLE_FIRSTBOOT_USER=0 \
+      --tag "localhost/{{ image_name }}:$TAG" .
 
 # Bouw een bootable qcow2 via bootc-image-builder.
 # Rootless build (heeft netwerk) → image via save|load naar root-storage (rootful build

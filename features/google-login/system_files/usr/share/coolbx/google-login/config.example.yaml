@@ -1,0 +1,10 @@
+# Voorbeeld toestelconfig voor Google-login (ADR-0031) — wordt door de config-repo (ansible) op
+# /etc/coolbx/google-login/config.yaml gezet. Alles hier is school-specifiek; niets zit in het image.
+domain: lln.edugolo.be                  # informatief / volgorde van zoekbases
+search_bases:                           # gebruikers; eerste base wint bij gelijke uid
+  - dc=lln,dc=edugolo,dc=be
+  - dc=edugolo,dc=be
+group_base: ou=Groups,dc=edugolo,dc=be
+allow_groups:                           # Google-groepen (naam vóór @) die op DIT toestel mogen aanmelden
+  - leerlingen
+  - ict

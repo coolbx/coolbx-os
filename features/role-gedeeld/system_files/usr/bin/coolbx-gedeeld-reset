@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Verse home voor de gedeelde gebruiker 'leerling' (bij afmelden via GDM PostSession en bij boot).
+set -uo pipefail
+U=leerling; H=/var/home/$U
+id "$U" >/dev/null 2>&1 || exit 0
+pkill -KILL -u "$U" 2>/dev/null || true
+rm -rf --one-file-system "$H"
+mkdir -p "$H"; cp -aT /etc/skel "$H" 2>/dev/null || true
+chown -R "$U:$U" "$H"; chmod 0700 "$H"
+rm -f "/var/lib/AccountsService/users/$U" 2>/dev/null || true

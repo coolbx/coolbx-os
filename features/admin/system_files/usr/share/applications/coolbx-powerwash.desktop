@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Toestel wissen
+Comment=Powerwash: alle gebruikers en instellingen wissen en het toestel opnieuw opstarten
+TryExec=/usr/bin/coolbx-powerwash-gui
+Exec=/usr/bin/coolbx-powerwash-gui
+Icon=edit-clear-all-symbolic
+Terminal=false
+Categories=System;Settings;

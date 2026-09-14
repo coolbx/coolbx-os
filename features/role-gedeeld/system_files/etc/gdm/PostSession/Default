@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# GDM PostSession (root): gedeelde gebruiker → home wissen bij afmelden.
+[ "${USER:-}" = "leerling" ] && /usr/bin/coolbx-gedeeld-reset
+exit 0

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# "Toestel wissen"-launcher voor de beheerder. Bestand is 0750 root:wheel → de launcher (TryExec)
+# is voor niet-beheerders onzichtbaar. Bevestiging + pkexec (vraagt het beheerderswachtwoord).
+set -uo pipefail
+if command -v zenity >/dev/null 2>&1; then
+  zenity --question --title="Toestel wissen" --width=420 \
+    --text="Alle gebruikers, bestanden en instellingen op dit toestel worden gewist.\nHet toestel start opnieuw op en is daarna als nieuw geïnstalleerd.\n\nDoorgaan?" \
+    --ok-label="Wissen en herstarten" --cancel-label="Annuleren" || exit 0
+fi
+exec pkexec /usr/bin/coolbx-powerwash request --reboot

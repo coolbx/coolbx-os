@@ -1,0 +1,3 @@
+# Google-login (ADR-0031): geen gebruikerslijst (LDAP kent honderden accounts) → naamveld.
+[org/gnome/login-screen]
+disable-user-list=true

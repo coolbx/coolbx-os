@@ -1,0 +1,3 @@
+# Coolbx OS — leerkracht-defaults (ADR-0030): open, geen locks; eigen Flatpak-installs mogen.
+[org/gnome/desktop/screensaver]
+lock-enabled=true

@@ -1,25 +1,47 @@
 #!/usr/bin/env bash
-# Coolbx OS — vlootconfig pullen & lokaal toepassen (Fase 6). ENKEL runtime/per-rol-config
-# (groep, netwerk/printer, ring, kleine toggles) — NOOIT software/kernconfig (die zit in het image).
-# De repo-URL staat in /etc/coolbx/ansible.conf zodat scholen 'm zonder rebuild kunnen zetten.
+# Coolbx OS — toestelconfig pullen & toepassen (ADR-0032). ENKEL runtime-/toestelconfig (kiosk-apps,
+# dconf, Chrome-beleid, flatpaks, printers, google-login, geheimen) — NOOIT software/kernconfig (image).
+#   /etc/coolbx/ansible.conf   → ANSIBLE_PULL_URL (+ optioneel ANSIBLE_PULL_PLAYBOOK)
+#   /etc/coolbx/device.yaml    → role / profile / channel   (default uit het image, gezet door installer)
+#   /etc/coolbx/vault-pass     → ansible-vault-wachtwoord (root-only, van de installer)
+# Het toestel identificeert zich met zijn serienummer (BIOS; hostnaam als fallback in VM's); de
+# playbook zoekt het op in devices.yml. Kanaal 'test' → branch testing, anders main.
 set -uo pipefail
 
 CONF=/etc/coolbx/ansible.conf
 # shellcheck source=/dev/null
 [ -f "$CONF" ] && . "$CONF"
-
 URL="${ANSIBLE_PULL_URL:-}"
 if [ -z "$URL" ] || printf '%s' "$URL" | grep -q "PLACEHOLDER"; then
-  echo "coolbx-ansible-pull: geen repo geconfigureerd in $CONF — overslaan (no-op)"
-  exit 0
+  echo "coolbx-ansible-pull: geen repo geconfigureerd in $CONF — overslaan (no-op)"; exit 0
 fi
 
-GROUP="$(cat /usr/share/coolbx/ansible/laptop-group 2>/dev/null || echo leerlingen)"
-echo "coolbx-ansible-pull: groep=${GROUP} repo=${URL}"
+DEV=/etc/coolbx/device.yaml
+yv() { sed -n "s/^$1:[[:space:]]*['\"]\{0,1\}\([^'\"#]*\)['\"]\{0,1\}[[:space:]]*\(#.*\)\{0,1\}$/\1/p" "$DEV" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//'; }
+ROLE="$(yv role)"; PROFILE="$(yv profile)"; CHANNEL="$(yv channel)"
+ROLE="${ROLE:-onbekend}"; CHANNEL="${CHANNEL:-stabiel}"
+SERIAL="$(tr -d '[:space:]' < /sys/class/dmi/id/product_serial 2>/dev/null || true)"
+case "$SERIAL" in ""|"NotSpecified"|"None"|"Default"*|"System"*|"ToBeFilledByO.E.M."|"0"|"0123456789") SERIAL="" ;; esac
+HOSTN="$(hostname -s 2>/dev/null || echo onbekend)"
+BRANCH="${ANSIBLE_PULL_BRANCH:-}"
+[ -n "$BRANCH" ] || { [ "$CHANNEL" = "test" ] && BRANCH=testing || BRANCH=main; }
 
-# -o: alleen draaien als de repo wijzigde (spaart server + CPU). De groep gaat als extra-var
-# mee zodat de playbook per rol kan vertakken (leerlingen/leerkrachten/administratie).
-exec /usr/bin/ansible-pull \
-  -U "$URL" -o \
-  --extra-vars "coolbx_group=${GROUP}" \
+VAULT=()
+[ -s /etc/coolbx/vault-pass ] && VAULT=(--vault-password-file /etc/coolbx/vault-pass)
+
+STATUS=/var/lib/coolbx/ansible-status.json
+mkdir -p /var/lib/coolbx /var/lib/coolbx/ansible-checkout
+echo "coolbx-ansible-pull: rol=${ROLE} profiel=${PROFILE:-<rol-standaard>} kanaal=${CHANNEL} (branch ${BRANCH}) serienummer=${SERIAL:-<geen>} host=${HOSTN}"
+
+# -o: alleen draaien als de repo wijzigde (spaart server + CPU).
+/usr/bin/ansible-pull \
+  -U "$URL" -C "$BRANCH" -o -d /var/lib/coolbx/ansible-checkout \
+  "${VAULT[@]}" \
+  -e "coolbx_role=${ROLE}" -e "coolbx_profile=${PROFILE}" -e "coolbx_channel=${CHANNEL}" \
+  -e "coolbx_serial=${SERIAL}" -e "coolbx_hostname=${HOSTN}" \
   "${ANSIBLE_PULL_PLAYBOOK:-local.yml}"
+RC=$?
+# Gestructureerde status voor coolbx-status (lokaal; UI-klaar).
+printf '{"time":"%s","rc":%d,"role":"%s","profile":"%s","channel":"%s","branch":"%s","serial":"%s","vault":%s}\n' \
+  "$(date -Is)" "$RC" "$ROLE" "$PROFILE" "$CHANNEL" "$BRANCH" "$SERIAL" "$([ ${#VAULT[@]} -gt 0 ] && echo true || echo false)" > "$STATUS"
+exit "$RC"

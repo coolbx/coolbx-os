@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""Coolbx OS — Google Secure LDAP → SSSD (ADR-0031).
+
+Leest de toestelconfig (van ansible/installer) en genereert /etc/sssd/conf.d/coolbx-google.conf,
+daarna sssd (her)starten. Niets school-specifieks zit in het image: domeinen, zoekbases en groepen
+komen uit de config; certificaat/sleutel/toegangsgegevens uit de vault.
+
+  /etc/coolbx/google-login/config.yaml   (0644)  domain, search_bases, group_base, allow_groups
+  /etc/coolbx/google-login/access        (0600)  regel 1 = LDAP-client-gebruikersnaam, regel 2 = wachtwoord
+  /etc/sssd/coolbx-ldap.crt / .key       (0600)  Google LDAP-clientcertificaat
+
+  coolbx-google-login-apply            genereren + sssd herstarten (exit 0 = actief)
+  coolbx-google-login-apply --check    alleen valideren/tonen (geen wijziging)
+"""
+import os
+import re
+import subprocess
+import sys
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+CFG = "/etc/coolbx/google-login/config.yaml"
+ACCESS = "/etc/coolbx/google-login/access"
+CRT = "/etc/sssd/coolbx-ldap.crt"
+KEY = "/etc/sssd/coolbx-ldap.key"
+OUT = "/etc/sssd/conf.d/coolbx-google.conf"
+DN_RE = re.compile(r"^[A-Za-z]+=[^,]+(,[A-Za-z]+=[^,]+)*$")
+GROUP_RE = re.compile(r"^[A-Za-z0-9._@-]{1,128}$")
+
+
+def die(msg, rc=1):
+    print(f"coolbx-google-login: {msg}", file=sys.stderr)
+    sys.exit(rc)
+
+
+def load():
+    if not os.path.exists(CFG):
+        return None
+    with open(CFG, encoding="utf-8") as fh:
+        cfg = yaml.safe_load(fh) or {}
+    bases = [b.strip() for b in (cfg.get("search_bases") or []) if isinstance(b, str)]
+    if not bases or not all(DN_RE.match(b) for b in bases):
+        die(f"{CFG}: 'search_bases' ontbreekt of ongeldig")
+    group_base = str(cfg.get("group_base") or "").strip()
+    if not DN_RE.match(group_base):
+        die(f"{CFG}: 'group_base' ontbreekt of ongeldig")
+    groups = [str(g).strip() for g in (cfg.get("allow_groups") or [])]
+    if not groups or not all(GROUP_RE.match(g) for g in groups):
+        die(f"{CFG}: 'allow_groups' ontbreekt of ongeldig (minstens één Google-groep)")
+    for p in (ACCESS, CRT, KEY):
+        if not os.path.exists(p):
+            die(f"ontbreekt: {p} (geheimen uit de vault nog niet geplaatst)")
+    with open(ACCESS, encoding="utf-8") as fh:
+        lines = [l.strip() for l in fh.read().splitlines() if l.strip()]
+    if len(lines) < 2:
+        die(f"{ACCESS}: verwacht gebruikersnaam op regel 1 en wachtwoord op regel 2")
+    return {"bases": bases, "group_base": group_base, "groups": groups,
+            "bind_user": lines[0], "bind_pass": lines[1], "domain": str(cfg.get("domain") or "")}
+
+
+def render(c):
+    # Meerdere gebruikers-zoekbases (secundaire Google-domeinen zijn aparte subbomen, docs/WORKSPACE.md).
+    user_bases = "?".join(f"{b}?subtree?(objectClass=posixAccount)" for b in c["bases"])
+    return f"""# Gegenereerd door coolbx-google-login-apply — niet handmatig bewerken (ADR-0031).
+[sssd]
+services = nss, pam
+domains = google
+config_file_version = 2
+
+[nss]
+filter_users = root,coolbx,leerling,tester
+filter_groups = root,wheel
+
+[pam]
+offline_credentials_expiration = 90
+offline_failed_login_attempts = 5
+offline_failed_login_delay = 5
+
+[domain/google]
+id_provider = ldap
+auth_provider = ldap
+chpass_provider = none
+access_provider = simple
+simple_allow_groups = {", ".join(c["groups"])}
+
+ldap_uri = ldaps://ldap.google.com:636
+ldap_tls_cert = {CRT}
+ldap_tls_key = {KEY}
+ldap_tls_cacert = /etc/pki/tls/certs/ca-bundle.crt
+ldap_tls_reqcert = demand
+ldap_id_use_start_tls = false
+ldap_referrals = false
+ldap_default_bind_dn = {c["bind_user"]}
+ldap_default_authtok_type = password
+ldap_default_authtok = {c["bind_pass"]}
+
+ldap_schema = rfc2307bis
+ldap_search_base = {c["bases"][-1]}
+ldap_user_search_base = {user_bases}
+ldap_group_search_base = {c["group_base"]}
+ldap_user_email = mail
+ldap_user_member_of = memberOf
+ldap_group_member = member
+ldap_group_nesting_level = 1
+
+override_homedir = /home/%u
+default_shell = /bin/bash
+cache_credentials = true
+enumerate = false
+entry_cache_timeout = 5400
+ldap_network_timeout = 6
+ldap_opt_timeout = 8
+"""
+
+
+def main():
+    check = "--check" in sys.argv
+    c = load()
+    if c is None:
+        print("coolbx-google-login: geen config (nog niet ingeschreven) — sssd blijft uit")
+        if not check:
+            subprocess.run(["systemctl", "disable", "--now", "sssd.service"], check=False, capture_output=True)
+        return 0
+    text = render(c)
+    if check:
+        print(re.sub(r"(ldap_default_authtok = ).*", r"\1<verborgen>", text))
+        return 0
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    fd = os.open(OUT, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    for p in (CRT, KEY, ACCESS):
+        os.chmod(p, 0o600)
+    # Fedora's authselect-sssd-profiel + oddjob-mkhomedir → home bij eerste aanmelding.
+    subprocess.run(["systemctl", "enable", "--now", "oddjobd.service"], check=False, capture_output=True)
+    subprocess.run(["systemctl", "enable", "sssd.service"], check=False, capture_output=True)
+    r = subprocess.run(["systemctl", "restart", "sssd.service"], capture_output=True, text=True)
+    if r.returncode != 0:
+        die(f"sssd start faalde: {r.stderr.strip()}")
+    print(f"coolbx-google-login: actief — groepen {', '.join(c['groups'])}, "
+          f"zoekbases {len(c['bases'])}, domein {c['domain'] or '-'}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

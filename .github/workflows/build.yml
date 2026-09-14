@@ -1,6 +1,8 @@
-# Coolbx OS — build, push & sign the bootc container image (Fase 5, ADR-0021/0022 + ublue-os patterns).
-# Single image (no flavor matrix). Publishes a PRODUCTION image (ENABLE_FIRSTBOOT_USER=0: no testuser,
-# DevTools/file:// hardening present). PRs build-only; main/cron/dispatch push + cosign-sign by digest.
+# Coolbx OS — build, push & sign the bootc container images (Fase 5, ADR-0021/0022 + ublue-os patterns).
+# ROLE MATRIX (ADR-0030): one Containerfile, three role images (leerling / leerkracht / gedeeld), each
+# tagged :<role> (+ :<role>.YYYYMMDD + sha). Feature sets come from scripts/role-features.sh (single
+# source of truth). PRODUCTION builds (ENABLE_FIRSTBOOT_USER=0). PRs build-only; main/cron/dispatch
+# push + cosign-sign by digest.
 name: build
 
 on:
@@ -17,7 +19,6 @@ on:
 env:
   IMAGE_NAME: coolbx-os
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-  FEATURES: "chrome kiosk branding hardware fleet managed apps media-nonfree"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,6 +27,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [leerling, leerkracht, gedeeld]
     permissions:
       contents: read
       packages: write
@@ -34,20 +39,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
-      - name: Lowercase registry
-        run: echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> "$GITHUB_ENV"
+      - name: Lowercase registry + role features
+        run: |
+          echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> "$GITHUB_ENV"
+          echo "FEATURES=$(scripts/role-features.sh "${{ matrix.role }}")" >> "$GITHUB_ENV"
 
-      # Tags: stable channel + dated + (on PR) a sha tag. Canary :testing is promoted manually.
+      # Tags: :<role> channel + dated + (on PR) a sha tag. Canary :testing-<role> is promoted manually.
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=stable,enable=${{ github.event_name != 'pull_request' }}
-            type=raw,value=stable.{{date 'YYYYMMDD'}},enable=${{ github.event_name != 'pull_request' }}
-            type=sha,enable=${{ github.event_name != 'pull_request' }}
-            type=ref,event=pr
+            type=raw,value=${{ matrix.role }},enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=${{ matrix.role }}.{{date 'YYYYMMDD'}},enable=${{ github.event_name != 'pull_request' }}
+            type=sha,prefix=${{ matrix.role }}-,enable=${{ github.event_name != 'pull_request' }}
+            type=ref,event=pr,prefix=${{ matrix.role }}-
 
       # Pre-pull de basis-image in ROOT-storage met herhaling. quay.io's CDN levert af en toe een
       # blob met "unexpected EOF" → buildah's FROM-pull faalt dan hard. Met retries vangen we die
@@ -70,7 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo -E buildah build \
-            --tag "localhost/${IMAGE_NAME}:stable" \
+            --tag "localhost/${IMAGE_NAME}:${{ matrix.role }}" \
             --build-arg "FEATURES=${FEATURES}" \
             --build-arg "ENABLE_FIRSTBOOT_USER=0" \
             --build-arg "FEATURES_CACHEBUST=${{ github.sha }}" \
@@ -93,9 +100,9 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: hhd-dev/rechunk@5fbe1d3a639615d2548d83bc888360de6267b1a2 # v1.2.4
         with:
-          ref: localhost/${{ env.IMAGE_NAME }}:stable
-          prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:stable
-          version: stable
+          ref: localhost/${{ env.IMAGE_NAME }}:${{ matrix.role }}
+          prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.role }}
+          version: ${{ matrix.role }}
           labels: ${{ steps.meta.outputs.labels }}
 
       # CONTROLE-STAP + push. Mount de rechunk-output (root) en eis dat het OS-kern-anker (het

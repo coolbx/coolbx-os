@@ -1,0 +1,6 @@
+# Coolbx OS — toestelbestand-DEFAULT uit het image (rol leerkracht, ADR-0032).
+# Bij de eerste boot gekopieerd naar /etc/coolbx/device.yaml (tmpfiles); de installer of ansible
+# overschrijft profile/channel. Leeg profile = "<rol>-standaard" in de config-repo.
+role: leerkracht
+profile: ""
+channel: stabiel

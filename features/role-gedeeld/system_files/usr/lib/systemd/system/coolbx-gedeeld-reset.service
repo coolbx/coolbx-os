@@ -1,0 +1,11 @@
+[Unit]
+Description=Coolbx: verse home voor de gedeelde gebruiker bij opstart
+After=local-fs.target systemd-sysusers.service systemd-tmpfiles-setup.service
+Before=gdm.service display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/coolbx-gedeeld-reset
+
+[Install]
+WantedBy=multi-user.target
