@@ -86,20 +86,20 @@ Rol-samenstelling (CI-matrix, [ADR-0030](adr/0030-drie-rol-images.md)):
 ### Fase A — Vastleggen ✅
 Roadmap v3 + ADR-0028…0034. Memory bijgewerkt.
 
-### Fase B — Kiosk generiek, Focus apart
+### Fase B — Kiosk generiek, Focus apart ✅ (14 sep)
 - `kiosk`: apps uit YAML (`id`, `name`, `icon`, `url`, `allow_domains`, `policy`), launcher-generator
   (`coolbx-kiosk-apps apply` → `.desktop` per app in `/var/lib/coolbx/share/applications`, via XDG_DATA_DIRS), per-app Chromium-policy
   tijdens de sessie (`coolbx-kiosk-app.json`), browser-agnostisch (chrome of chromium), waybar toont app-naam.
 - `focus` = huidige `attest` + Focus-delen van `kiosk` (managed.json, domains, lobby-policy) + kiosk-app `focus`.
 - greenboot/status/tests feature-bewust. e2e: Focus-tests skippen zonder `focus`.
 
-### Fase C — Rollen, accounts, beheer
+### Fase C — Rollen, accounts, beheer ✅ (14 sep)
 - `admin`-feature (`coolbx`, wheel, verborgen; powerwash-marker + vroege-boot-wipe + launcher).
 - `role-gedeeld` (gebruiker `leerling`, wachtwoordloos in GDM via PAM, autologin bij boot, home gewist bij logout/boot).
 - `role-leerling` / `role-leerkracht` (dconf-locks, Software/terminal enkel leerkracht, `device.yaml`-default).
 - Justfile + CI-matrix voor drie tags (`:leerling`, `:leerkracht`, `:gedeeld` + gedateerd), rechunk per rol.
 
-### Fase D — Google-login, Chrome, config-repo
+### Fase D — Google-login, Chrome, config-repo ✅ (14 sep, e2e tegen de sandbox)
 - `google-login`: SSSD-template (twee zoekbases, `simple_allow_groups`, cache, mkhomedir), authselect,
   GDM `disable-user-list`. e2e tegen de sandbox: `getent`, SSH-login als testleerling, weigering leerkracht.
 - `chrome`: Google Chrome-RPM, `/etc/opt/chrome/policies/managed` → gedeelde policy-dir, enrollment-token uit config.
@@ -107,16 +107,16 @@ Roadmap v3 + ADR-0028…0034. Memory bijgewerkt.
   `google-login`, `flatpaks`, `printers`, `admin-user`, `powerwash`), `profiles/`, `devices.yml`, `vault.yml`, CI.
 - OS-kant: `coolbx-ansible-pull` leest `device.yaml` + serienummer, kanaal → branch, vault-wachtwoord uit `/etc/coolbx/vault-pass`.
 
-### Fase E — Installatie-ISO
+### Fase E — Installatie-ISO ✅ (14 sep, `just build-iso` + `just iso-test`)
 `just build-iso rol=…`: BIB `--type anaconda-iso`, minimale installer (enkel schijf), kickstart-`%post` zet
 `device.yaml`, `ansible.conf`, `vault-pass`, beheerderswachtwoord uit een lokaal, git-genegeerd `school.env`.
 Getest in de VM (ISO-boot → install → eerste boot → ansible-pull → Google-login).
 
-### Fase F — Design & afwerking
+### Fase F — Design & afwerking ✅ (ADR-0035, v2 na feedback)
 Ontwerpcanvas (concept + opstart/aanmelden/bureaublad/kiosk-balk), dan assets vector-eerst per resolutie
 (Plymouth, GRUB, GDM, wallpapers per rol, waybar-stijl, iconen). ADR-0035.
 
-### Fase G — Docs & overdracht
+### Fase G — Docs & overdracht ✅ (UITROL.md v3) — hardware-installatie door Johan
 `docs/UITROL.md` herschreven (school-installatie, sandbox→productie in Workspace, certificaatverval sep 2029,
 powerwash, troubleshooting). Handmatige hardware-installatie door Johan.
 
@@ -124,6 +124,13 @@ powerwash, troubleshooting). Handmatige hardware-installatie door Johan.
 `just build-qcow2` → `just dev-vm` → `just e2e`. Machine-leesbaar (SSH, CDP, QMP-screendump, OCR).
 Google-sandbox-geheimen op de dev-machine in `~/.config/coolbx/secrets/` (nooit in git); de e2e pusht ze
 via SSH in de VM. Workspace-testomgeving: OU `/coolbx-sandbox` (zie `docs/WORKSPACE.md`).
+
+## 5b. Stand van zaken (14 sep 2026, nacht)
+93/93 e2e groen (`just e2e`) op de dev-image (leerling-set + role-gedeeld + chromium + focus), inclusief echte
+Google-login tegen de sandbox (test_17), config-pull vanaf de config-repo (test_20), admin/powerwash (test_18),
+gedeeld toestel (test_19), bureaublad (test_21). Prod-rol-image `gedeeld` gebouwd en geïnspecteerd; ISO-installatie
+in een lege VM getest (`just iso-test`). Open: canary-tags `:testing-<rol>`, fysieke beveiliging, Focus-e2e
+tegen de live server (Focus-kant), hardware-rondgang.
 
 ## 6. Bewust uitgesteld
 Fysieke beveiliging (firmware-/GRUB-wachtwoord, Secure-Boot-afdwinging) · tweestapsverificatie op de
