@@ -43,8 +43,10 @@ printf '%s\\n' '@VAULT_PASS@' > /etc/coolbx/vault-pass
 # Beheerder 'coolbx' (ADR-0031): wachtwoord-hash uit school.env (sysusers maakt het account bij boot;
 # hier al in shadow zetten zodat het meteen werkt).
 if [ -n '@ADMIN_HASH@' ]; then
-  getent passwd coolbx >/dev/null 2>&1 || useradd -u 900 -g 900 -G wheel -d /var/home/coolbx -s /bin/bash -M coolbx 2>/dev/null || true
-  usermod -p '@ADMIN_HASH@' coolbx 2>/dev/null || true
+  getent group coolbx >/dev/null 2>&1 || groupadd -g 900 coolbx
+  getent passwd coolbx >/dev/null 2>&1 || useradd -u 900 -g 900 -G wheel -d /var/home/coolbx -s /bin/bash -M coolbx
+  usermod -p '@ADMIN_HASH@' coolbx
+  echo "coolbx: wachtwoord gezet"
 fi
 # Updates via GHCR i.p.v. de in de ISO ingebakken localhost-ref.
 bootc switch --mutate-in-place --transport registry @IMAGE_REF@ || true
