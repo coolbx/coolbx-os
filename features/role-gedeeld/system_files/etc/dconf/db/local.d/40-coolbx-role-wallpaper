@@ -1,0 +1,4 @@
+# Rol-accent op de wallpaper (ADR-0035, alternatief B subtiel): gedeeld
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-paper-gedeeld.png'
+picture-uri-dark='file:///usr/share/backgrounds/coolbx/coolbx-paper-gedeeld.png'

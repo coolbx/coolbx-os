@@ -101,9 +101,11 @@ for sf, name, dotc in ((KIOSK_SF, "coolbx-kiosk", src.MINT), (FOCUS_SF, "coolbx-
     svg_to_png(svg, ensure(f"{sf}/usr/share/icons/hicolor/512x512/apps/{name}.png"), 512, 512)
 
 # ── Wallpapers: papier (bureaublad) en nacht (aanmelden/vergrendelen), SVG-bron + 4K-PNG ──
-paper = src.paper_wallpaper_svg()
-open(ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-paper.svg"), "w").write(paper)
-svg_to_png(paper, ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-paper.png"))
+for role, accent in src.ROLE_ACCENT.items():
+    paper = src.paper_wallpaper_svg(accent=accent)
+    name = "coolbx-paper" if role == "default" else f"coolbx-paper-{role}"
+    open(ensure(f"{SF}/usr/share/backgrounds/coolbx/{name}.svg"), "w").write(paper)
+    svg_to_png(paper, ensure(f"{SF}/usr/share/backgrounds/coolbx/{name}.png"))
 night = src.night_wallpaper_svg()
 open(ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-night.svg"), "w").write(night)
 svg_to_png(night, ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-night.png"))

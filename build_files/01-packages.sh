@@ -37,6 +37,8 @@ packages=(
   NetworkManager NetworkManager-wifi
   # Boot splash
   plymouth plymouth-system-theme
+  # Vaste dock onderaan (Chromebook-shelf-gevoel, ADR-0035); ingeschakeld via dconf (branding).
+  gnome-shell-extension-dash-to-dock
   # Browser = feature (chrome / chromium, ADR-0033); kiosk-compositor = kiosk-feature.
   # Flatpak in de KERN (ADR-0030): ansible zet system-wide apps bij; leerlingen missen enkel de ingangen.
   flatpak

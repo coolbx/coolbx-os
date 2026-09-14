@@ -1,0 +1,4 @@
+# Rol-accent op de wallpaper (ADR-0035, alternatief B subtiel): leerkracht
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-paper-leerkracht.png'
+picture-uri-dark='file:///usr/share/backgrounds/coolbx/coolbx-paper-leerkracht.png'

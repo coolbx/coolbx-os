@@ -21,26 +21,28 @@ def glyph_svg(size=512, tile=INK, sheet=PAPER, dot=MINT, tile_stroke=None, bare=
     return "\n".join(out)
 
 
-def paper_wallpaper_svg(w=3840, h=2160):
-    """Bureaublad: licht papier, zwakke schrijflijnen, één mint kantlijn, mint dot met zachte gloed."""
-    line_gap = round(h / 38)            # ~56 px op 1080p-equivalent
-    margin_x = round(w * 0.083)
-    dot_x, dot_y = round(w * 0.82), round(h * 0.88)
+ROLE_ACCENT = {"leerling": MINT, "leerkracht": "#5da9e0", "gedeeld": "#c9a86a", "default": MINT}
+
+
+def paper_wallpaper_svg(w=3840, h=2160, accent=MINT):
+    """Bureaublad: warm papier, een zachte horizon-wash in de rol-accentkleur die van onderuit opkomt,
+    en een dunne accentband langs de onderrand (de 'rol-rand'). Geen lijnen, geen figuren."""
+    band = max(4, round(h / 270))               # ~8 px op 1080p
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
   <defs>
-    <pattern id="lijn" width="{w}" height="{line_gap}" patternUnits="userSpaceOnUse">
-      <line x1="0" y1="{line_gap - 1}" x2="{w}" y2="{line_gap - 1}" stroke="{INK}" stroke-opacity="0.055" stroke-width="{max(1, round(h/1080))}"/>
-    </pattern>
-    <radialGradient id="vlek" cx="{dot_x}" cy="{dot_y}" r="{round(w*0.42)}" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="{MINT}" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="{MINT}" stop-opacity="0"/>
+    <linearGradient id="horizon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.55" stop-color="{accent}" stop-opacity="0"/>
+      <stop offset="1" stop-color="{accent}" stop-opacity="0.16"/>
+    </linearGradient>
+    <radialGradient id="licht" cx="{round(w*0.18)}" cy="{round(h*0.12)}" r="{round(w*0.55)}" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <rect width="{w}" height="{h}" fill="{PAPER}"/>
-  <rect width="{w}" height="{h}" fill="url(#lijn)"/>
-  <rect width="{w}" height="{h}" fill="url(#vlek)"/>
-  <line x1="{margin_x}" y1="0" x2="{margin_x}" y2="{h}" stroke="{MINT}" stroke-opacity="0.35" stroke-width="{max(2, round(h/540))}"/>
-  <circle cx="{dot_x}" cy="{dot_y}" r="{round(h/120)}" fill="{MINT}"/>
+  <rect width="{w}" height="{h}" fill="url(#licht)"/>
+  <rect width="{w}" height="{h}" fill="url(#horizon)"/>
+  <rect x="0" y="{h - band}" width="{w}" height="{band}" fill="{accent}"/>
 </svg>
 '''
 

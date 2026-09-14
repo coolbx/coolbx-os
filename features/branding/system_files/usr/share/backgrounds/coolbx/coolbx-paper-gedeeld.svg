@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160">
   <defs>
     <linearGradient id="horizon" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.55" stop-color="#50ce96" stop-opacity="0"/>
-      <stop offset="1" stop-color="#50ce96" stop-opacity="0.16"/>
+      <stop offset="0.55" stop-color="#c9a86a" stop-opacity="0"/>
+      <stop offset="1" stop-color="#c9a86a" stop-opacity="0.16"/>
     </linearGradient>
     <radialGradient id="licht" cx="691" cy="259" r="2112" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
@@ -12,5 +12,5 @@
   <rect width="3840" height="2160" fill="#faf8f3"/>
   <rect width="3840" height="2160" fill="url(#licht)"/>
   <rect width="3840" height="2160" fill="url(#horizon)"/>
-  <rect x="0" y="2152" width="3840" height="8" fill="#50ce96"/>
+  <rect x="0" y="2152" width="3840" height="8" fill="#c9a86a"/>
 </svg>

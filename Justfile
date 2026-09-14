@@ -66,10 +66,12 @@ build-iso rol:
     #!/usr/bin/env bash
     set -euo pipefail
     [ -f school.env ] || { echo "school.env ontbreekt — kopieer school.env.example en vul in"; exit 1; }
+    set -a   # alles uit school.env + de afgeleide waarden exporteren voor het python-sjabloon
     # shellcheck source=/dev/null
     . ./school.env
     VAULT_PASS="$(cat "${VAULT_PASS_FILE}")"
     ADMIN_HASH="$( [ -s "${ADMIN_HASH_FILE:-/nonexistent}" ] && cat "${ADMIN_HASH_FILE}" || true )"
+    set +a
     just build-role "{{ rol }}"
     mkdir -p output
     [ "${ISO_UNATTENDED:-0}" = "1" ] && echo "!! ONBEHEERDE ISO: wist bij het booten de eerste schijf ZONDER vraag (enkel voor de VM-test)" || true
@@ -94,7 +96,7 @@ build-iso rol:
       -v "$(pwd)/output:/output" \
       -v /var/lib/containers/storage:/var/lib/containers/storage \
       "{{ bib_image }}" \
-      --type anaconda-iso --use-librepo=True \
+      --type anaconda-iso --rootfs "{{ rootfs }}" --use-librepo=True \
       "localhost/{{ image_name }}:{{ rol }}"
     sudo podman run --rm --security-opt label=disable -v "$(pwd)/output:/output" \
       "{{ base_image }}" chown -R "$(id -u):$(id -g)" /output

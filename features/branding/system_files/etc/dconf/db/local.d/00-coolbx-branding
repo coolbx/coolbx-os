@@ -22,3 +22,28 @@ primary-color='#141210'
 
 [org/gnome/desktop/wm/preferences]
 button-layout='appmenu:minimize,maximize,close'
+
+[org/gnome/shell]
+enabled-extensions=['dash-to-dock@micxgx.gmail.com']
+
+# Vaste dock onderaan, altijd zichtbaar, inkt-kleur — de "shelf" (ADR-0035).
+[org/gnome/shell/extensions/dash-to-dock]
+dock-position='BOTTOM'
+dock-fixed=true
+intellihide=false
+autohide=false
+extend-height=false
+multi-monitor=true
+dash-max-icon-size=40
+show-trash=false
+show-mounts=false
+show-show-apps-button=true
+show-apps-at-top=false
+custom-background-color=true
+background-color='#141210'
+transparency-mode='FIXED'
+background-opacity=0.92
+apply-custom-theme=false
+running-indicator-style='DOTS'
+click-action='minimize-or-previews'
+disable-overview-on-startup=true
