@@ -139,18 +139,20 @@ class VM:
         self.ssh_sudo(
             "systemctl stop coolbx-kiosk 2>/dev/null; systemctl reset-failed coolbx-kiosk 2>/dev/null; "
             "pkill -9 -f chromium-kiosk.sh 2>/dev/null; pkill -9 sway 2>/dev/null; "
-            "pkill -9 -f -- '--app=' 2>/dev/null; pkill -9 chromium 2>/dev/null; "
+            "pkill -9 -f -- '--app=' 2>/dev/null; pkill -9 chromium 2>/dev/null; pkill -9 -f /opt/google/chrome 2>/dev/null; "
             "umount -l /var/lib/coolbx-kiosk 2>/dev/null; coolbx-vt-lock unlock 2>/dev/null; true",
             check=False,
         )
 
-    def kiosk_start(self, url="file:///usr/share/coolbx/kiosk/placeholder.html", debug=True):
-        env = f"COOLBX_KIOSK_URL={url}"
-        if debug:
-            env = "COOLBX_KIOSK_DEBUG=1 " + env
-        # setsid + nohup: de start-helper blokkeert (sway-sessie); we willen 'm gedetacht.
+    def kiosk_start(self, app="test", debug=True, url=None):
+        """Start een kiosk-app (ADR-0029). 'test' = de dev-placeholder (alleen in dev-builds).
+        url= overschrijft de app-URL (dev-only pad, alleen via root/ssh bereikbaar)."""
+        env = "COOLBX_KIOSK_DEBUG=1 " if debug else ""
+        if url:
+            env += f"COOLBX_KIOSK_URL={url} "
+        # setsid: de start-helper blokkeert (sway-sessie); we willen 'm gedetacht.
         self.ssh_sudo(
-            f"setsid sh -c 'env {env} /usr/bin/coolbx-kiosk-start' >/dev/null 2>&1 &",
+            f"setsid sh -c 'env {env}/usr/bin/coolbx-kiosk-start {app}' >/dev/null 2>&1 &",
             check=False,
         )
 
@@ -158,8 +160,11 @@ class VM:
         return self.ssh_ok("echo tester | sudo -S systemctl is-active --quiet coolbx-kiosk")
 
     def chromium_running(self):
-        # comm is afgekapt op 15 tekens ('chromium-browse') → pgrep op substring 'chromium'.
-        return self.ssh_ok("pgrep chromium >/dev/null 2>&1")
+        # Chrome óf Chromium (browser-agnostisch, ADR-0033). comm is afgekapt op 15 tekens.
+        return self.ssh_ok("pgrep chromium >/dev/null 2>&1 || pgrep -f /opt/google/chrome/chrome >/dev/null 2>&1")
+
+    def has_feature_focus(self):
+        return self.ssh_ok("test -f /etc/chromium/policies/managed/coolbx-managed.json")
 
     # ---- laag D: pixels (screendump + QMP-input + OCR) ----
     def screenshot(self, path):

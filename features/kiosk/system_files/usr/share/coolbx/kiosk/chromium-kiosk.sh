@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
-# Start Chromium in kiosk-modus; herstart bij crash met een limiet (geen eindeloze loop).
-# Flags bewezen in de kiosk-sessie (ADR-0015 + S3): chromium-browser, --password-store=basic,
-# --user-data-dir (schrijfbaar), --disable-gpu + --disable-dev-shm-usage (software-rendering in VM).
+# Start de browser in kiosk-modus (--app, één venster); herstart bij crash met een limiet.
+# Browser-agnostisch: Google Chrome (chrome-feature) of Fedora-Chromium (chromium-feature) — beide
+# lezen de gedeelde Coolbx-policy-dir. Flags bewezen in de kiosk-sessie (ADR-0015 + S3).
 set -uo pipefail
 
-URL="${COOLBX_KIOSK_URL:-https://focus-dashboard.edugolo.be/}"
-BIN="$(command -v chromium-browser || command -v chromium || true)"
-[ -n "$BIN" ] || { echo "geen chromium gevonden" >&2; exit 1; }
+URL="${COOLBX_KIOSK_URL:?COOLBX_KIOSK_URL ontbreekt}"
+BIN="$(command -v google-chrome-stable || command -v google-chrome || command -v chromium-browser || command -v chromium || true)"
+[ -n "$BIN" ] || { echo "geen browser gevonden (chrome/chromium)" >&2; exit 1; }
 PROFILE="${XDG_RUNTIME_DIR:-$HOME}/coolbx-chrome"
 
-# DEV-ONLY (ADR-0020): CDP-debugpoort voor de e2e-harness. NOOIT in productie —
-# een open remote-debugging-port in een toetskiosk = volledige browsercontrole
-# (valsspeel-vector). Enkel actief als de dev-VM COOLBX_KIOSK_DEBUG=1 zet; de
-# prod-image zet die env nooit. user-data-dir (niet-default) is sowieso al gezet,
-# wat Chrome 136+ vereist; --remote-allow-origins is nodig vanaf Chrome 111.
+# DEV-ONLY (ADR-0020): CDP-debugpoort voor de e2e-harness. NOOIT in productie — de prod-image zet
+# COOLBX_KIOSK_DEBUG nooit. user-data-dir is sowieso gezet (Chrome 136+ vereist dat).
 DEBUG_FLAGS=()
 if [ "${COOLBX_KIOSK_DEBUG:-0}" = "1" ]; then
   echo "WAARSCHUWING: CDP-debugpoort 9222 actief (COOLBX_KIOSK_DEBUG=1) — DEV ONLY" >&2
@@ -22,9 +19,7 @@ if [ "${COOLBX_KIOSK_DEBUG:-0}" = "1" ]; then
     --remote-allow-origins=http://127.0.0.1:9222
   )
 fi
-# DEV-ONLY: laad de Focus-extensie UNPACKED uit een pad (test van managed-storage tegen de
-# echte extensie zonder de productie-force-install/.crx). Productie gebruikt force-install
-# via ExtensionSettings (update.xml). NOOIT in prod — env wordt daar nooit gezet.
+# DEV-ONLY: laad een extensie UNPACKED (test van managed-storage zonder force-install).
 if [ -n "${COOLBX_KIOSK_LOAD_EXT:-}" ] && [ -d "${COOLBX_KIOSK_LOAD_EXT}" ]; then
   echo "DEV: unpacked extensie laden uit ${COOLBX_KIOSK_LOAD_EXT}" >&2
   DEBUG_FLAGS+=(
@@ -35,14 +30,10 @@ fi
 
 n=0
 while [ "$n" -lt 10 ]; do
-  # Singleton afdwingen: ruim een eventueel nog draaiende chromium voor DIT profiel op.
-  # Anders draagt een nieuwe start z'n URL over aan de bestaande instance (singleton-handoff),
-  # keert meteen terug, en zou deze herstart-loop stapels --app-vensters openen.
+  # Singleton afdwingen: een nieuwe start zou anders z'n URL aan de bestaande instance overdragen
+  # (handoff) en meteen terugkeren → stapels vensters. Eerst opruimen.
   pkill -f -- "--user-data-dir=$PROFILE" 2>/dev/null && sleep 1 || true
 
-  # GPU-loos alleen bij software-rendering (F-02-050): coolbx-kiosk-start zet
-  # COOLBX_KIOSK_SW_RENDER=1 in een VM/dev; op echte hardware gebruikt de
-  # kiosk de GPU (vlottere examen-rendering).
   GPU_FLAGS=()
   [ "${COOLBX_KIOSK_SW_RENDER:-0}" = "1" ] && GPU_FLAGS+=(--disable-gpu)
 
@@ -59,11 +50,10 @@ while [ "$n" -lt 10 ]; do
     "${DEBUG_FLAGS[@]}" \
     --app="$URL" || true
 
-  # Te snel terug (<5s) = handoff of directe crash → tel als faal (anti-spin);
-  # een normale, langere sessie reset de teller zodat één late crash niet meetelt.
+  # Te snel terug (<5s) = handoff of directe crash → tel als faal (anti-spin).
   if [ $(( SECONDS - start )) -lt 5 ]; then n=$((n + 1)); else n=0; fi
   sleep 1
 done
 
-# Te veel crashes -> sessie netjes beëindigen (terug naar GNOME via ExecStopPost).
+# Te veel crashes → sessie netjes beëindigen (terug naar GNOME via ExecStopPost).
 swaymsg exit 2>/dev/null || true

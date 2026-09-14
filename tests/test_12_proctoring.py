@@ -10,6 +10,8 @@ import json
 
 import pytest
 
+pytestmark = pytest.mark.focus
+
 NONCE = "focus-server-nonce-2c91f"
 
 

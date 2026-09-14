@@ -1,0 +1,7 @@
+# Coolbx Focus — de toetsentool als kiosk-app (focus-feature, ADR-0029).
+# De default-deny lobby-policy (Focus-infra + extensie) en de per-examen allowlist komen NIET
+# uit dit bestand maar uit coolbx-exam-policy (hook pre-start/post-stop + attest-daemon), zodat
+# de daemon-gestuurde examen-allowlist en de lobby één policy-bestand delen (coolbx-exam.json).
+name: Toetsmodus
+url: https://focus-dashboard.edugolo.be/
+icon: coolbx-focus

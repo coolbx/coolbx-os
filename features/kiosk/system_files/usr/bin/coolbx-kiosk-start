@@ -1,19 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Start de vergrendelde toets-kiosk (sway + chromium) als de 'coolbx-kiosk'-user op een eigen VT.
-# Geport van de POC start-focus, maar cage->sway en focus-app->chromium (ADR-0006).
-# Wordt via pkexec gestart door de Toetsmodus-launcher (polkit-regel 49-coolbx-kiosk).
+# Coolbx OS — start de vergrendelde kiosk (sway + waybar + browser) voor ÉÉN kiosk-app, als de
+# 'coolbx-kiosk'-user op een eigen VT (ADR-0006/0016/0029). Wordt via pkexec gestart door de
+# gegenereerde launcher (polkit-regel 49-coolbx-kiosk); pkexec strooit de omgeving leeg, dus een
+# leerling kan enkel een app-ID meegeven — URL en policy komen uit de root-only app-registry.
+#
+#   coolbx-kiosk-start <app-id>
+#
+# DEV-ONLY: zonder app-id valt het terug op 'test' (bestaat alleen in dev-builds); COOLBX_KIOSK_URL
+# overschrijft de URL (alleen bereikbaar voor root/ssh — pkexec geeft geen env door).
 
 KIOSK_USER="coolbx-kiosk"
 KIOSK_HOME="/var/lib/coolbx-kiosk"
 VT=3
 KIOSK_TTY="/dev/tty${VT}"
-RETURN_VT="${COOLBX_RETURN_VT:-2}"            # GNOME-gast draait op VT2
-URL="${COOLBX_KIOSK_URL:-https://focus-dashboard.edugolo.be/}"
+RETURN_VT="${COOLBX_RETURN_VT:-2}"            # GNOME draait op VT2
+RUN_DIR="/run/coolbx-kiosk"
+APP_POLICY="/etc/chromium/policies/managed/coolbx-kiosk-app.json"
+HOOKS_DIR="/usr/share/coolbx/kiosk/hooks.d"
+
+APP_ID="${1:-test}"
+if ! APP_JSON="$(/usr/bin/coolbx-kiosk-apps show "$APP_ID" --json 2>/dev/null)"; then
+  echo "coolbx-kiosk-start: onbekende kiosk-app '${APP_ID}'" >&2
+  exit 1
+fi
+APP_NAME="$(printf '%s' "$APP_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["name"])')"
+APP_URL="$(printf '%s' "$APP_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["url"])')"
+URL="${COOLBX_KIOSK_URL:-$APP_URL}"
+
+# Runtime-staat voor waybar en hooks (wereld-leesbaar; bevat geen geheimen).
+mkdir -p "$RUN_DIR"; chmod 0755 "$RUN_DIR"
+printf '%s\n' "$APP_ID" > "$RUN_DIR/app"
+printf '%s\n' "$APP_NAME" > "$RUN_DIR/name"
 
 # Ephemeral home op tmpfs (schoon per sessie — privacy tussen leerlingen).
-# De home MOET bestaan en schrijfbaar zijn, anders kan Chromium z'n crashpad-db niet aanmaken.
 mkdir -p "$KIOSK_HOME"
 mountpoint -q "$KIOSK_HOME" && umount -l "$KIOSK_HOME" 2>/dev/null || true
 mount -t tmpfs -o "mode=0700,uid=${KIOSK_USER},gid=${KIOSK_USER}" tmpfs "$KIOSK_HOME"
@@ -21,24 +42,25 @@ mount -t tmpfs -o "mode=0700,uid=${KIOSK_USER},gid=${KIOSK_USER}" tmpfs "$KIOSK_
 chown "$KIOSK_USER":tty "$KIOSK_TTY" 2>/dev/null || true
 chmod 620 "$KIOSK_TTY" 2>/dev/null || true
 
-# Default-deny vanaf de kiosklobby (B3.c, F-03-007): alleen Focus-infra + de
-# extensie tot de server een per-examen allowlist stuurt. Het bestand leeft
-# alleen zolang de kiosk draait (de policy-dir is globaal): kiosk-return en
-# de boot-cleanup ruimen het op.
-#
-# ALLEEN PROD: de default-deny URLBlocklist blokkeert óók de dev-placeholder
-# (`file://…/placeholder.html`) — net als coolbx-hardening-prod.json (die om
-# dezelfde reden dev-gated is). Signaal = de aanwezigheid van dat prod-only
-# bestand (dev-builds verwijderen het in features/kiosk/install.sh). Tijdens
-# een échte examen-start schrijft coolbx-attestd de policy los van dit pad,
-# dus de examen-lockdown werkt ook in dev-e2e (test_13).
-PROD_HARDENING=/etc/chromium/policies/managed/coolbx-hardening-prod.json
-if [ -x /usr/libexec/coolbx-exam-policy ] && [ -f "$PROD_HARDENING" ]; then
-  /usr/libexec/coolbx-exam-policy lobby || true
+# Per-app browser-policy voor de duur van de sessie (allow_domains → default-deny + allowlist,
+# plus extra 'policy'-keys). De policy-dir is globaal → het bestand leeft alleen zolang de kiosk
+# draait (kiosk-return + boot-cleanup ruimen het op).
+POLICY_JSON="$(/usr/bin/coolbx-kiosk-apps policy "$APP_ID")"
+if [ "$POLICY_JSON" != "{}" ]; then
+  install -m 0644 /dev/null "$APP_POLICY"
+  printf '%s\n' "$POLICY_JSON" > "$APP_POLICY"
+else
+  rm -f "$APP_POLICY"
 fi
 
-# DEV-ONLY (ADR-0020): forward de CDP-debugvlag door systemd-run heen naar de sway-sessie
-# (systemd-run start met schone env). Prod zet COOLBX_KIOSK_DEBUG nooit → leeg → geen effect.
+# Feature-hooks (bv. focus: lobby-policy). Draaien als root, vóór de sessie start.
+if [ -d "$HOOKS_DIR/pre-start" ]; then
+  for h in "$HOOKS_DIR"/pre-start/*; do
+    [ -x "$h" ] && COOLBX_KIOSK_APP="$APP_ID" "$h" || true
+  done
+fi
+
+# DEV-ONLY (ADR-0020): CDP-debugvlag doorgeven door systemd-run heen (schone env).
 DEBUG_ENV=()
 if [ "${COOLBX_KIOSK_DEBUG:-0}" = "1" ]; then
   DEBUG_ENV+=(--property=Environment="COOLBX_KIOSK_DEBUG=1")
@@ -47,10 +69,7 @@ if [ -n "${COOLBX_KIOSK_LOAD_EXT:-}" ]; then
   DEBUG_ENV+=(--property=Environment="COOLBX_KIOSK_LOAD_EXT=${COOLBX_KIOSK_LOAD_EXT}")
 fi
 
-# Volg GNOME's schaalkeuze: de kiosk wordt via pkexec gestart vanuit de GNOME-sessie (pkexec zet
-# PKEXEC_UID). Lees de door mutter gekozen <scale> uit de monitors.xml van die gebruiker en geef 'm
-# door aan sway (zie sway.conf). wlroots kiest anders agressief integer-2.0 i.p.v. GNOME's fractional
-# → kiosk groter dan de desktop. Niet gevonden → leeg → wlroots-auto (geen override).
+# Volg GNOME's schaalkeuze (monitors.xml van de startende gebruiker; pkexec zet PKEXEC_UID).
 SCALE_ENV=()
 GNOME_UID="${PKEXEC_UID:-}"
 if [ -n "$GNOME_UID" ]; then
@@ -62,11 +81,7 @@ if [ -n "$GNOME_UID" ]; then
   fi
 fi
 
-# Software-rendering (F-02-050, OV-4=VM-only): pixman/GPU-loos is nodig in de
-# VM (geen echte GPU), maar op écht toetsklas-hardware moet de GPU gebruikt
-# worden — anders rendert de examen-kiosk traag/haperend in software. Detecteer
-# een VM (systemd-detect-virt) of een dev-debugsessie; alleen dán forceren.
-# COOLBX_KIOSK_SOFTWARE_RENDER=1 dwingt het expliciet af (bv. GPU-loze hardware).
+# Software-rendering alleen in een VM/dev (F-02-050); echte hardware gebruikt de GPU.
 RENDER_ENV=()
 if [ "${COOLBX_KIOSK_SOFTWARE_RENDER:-0}" = "1" ] \
    || [ "${COOLBX_KIOSK_DEBUG:-0}" = "1" ] \
@@ -75,7 +90,7 @@ if [ "${COOLBX_KIOSK_SOFTWARE_RENDER:-0}" = "1" ] \
   RENDER_ENV+=(--property=Environment="COOLBX_KIOSK_SW_RENDER=1")
 fi
 
-# HOME/XDG_RUNTIME_DIR worden door pam_systemd gezet (niet via Environment= forceren).
+# HOME/XDG_RUNTIME_DIR komen van pam_systemd.
 systemd-run --unit=coolbx-kiosk --collect \
   --property=User="$KIOSK_USER" \
   --property=PAMName=login \
@@ -89,6 +104,7 @@ systemd-run --unit=coolbx-kiosk --collect \
   --property=Environment="XKB_DEFAULT_LAYOUT=be" \
   --property=Environment="LANG=nl_BE.UTF-8" \
   --property=Environment="COOLBX_KIOSK_URL=${URL}" \
+  --property=Environment="COOLBX_KIOSK_APP=${APP_ID}" \
   "${RENDER_ENV[@]}" \
   "${DEBUG_ENV[@]}" \
   "${SCALE_ENV[@]}" \
@@ -97,5 +113,5 @@ systemd-run --unit=coolbx-kiosk --collect \
 
 sleep 1
 chvt "$VT"
-# Blokkeer VT-switch tijdens de toets (S3): Ctrl+Alt+Fn doet niets meer tot de sessie eindigt.
+# Blokkeer VT-switch tijdens de sessie (S3): Ctrl+Alt+Fn doet niets tot de sessie eindigt.
 /usr/bin/coolbx-vt-lock lock || true

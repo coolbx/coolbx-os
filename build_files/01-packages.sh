@@ -37,9 +37,9 @@ packages=(
   NetworkManager NetworkManager-wifi
   # Boot splash
   plymouth plymouth-system-theme
-  # Browser + kiosk-compositor (kale OS bevat deze al; kiosk-feature gebruikt ze)
-  chromium
-  sway waybar
+  # Browser = feature (chrome / chromium, ADR-0033); kiosk-compositor = kiosk-feature.
+  # Flatpak in de KERN (ADR-0030): ansible zet system-wide apps bij; leerlingen missen enkel de ingangen.
+  flatpak
   # i18n (nl_BE) — glibc-locale + GNOME-UI-vertalingen
   glibc-langpack-en glibc-langpack-nl langpacks-nl
   google-noto-sans-fonts dejavu-sans-fonts dejavu-sans-mono-fonts
@@ -71,12 +71,10 @@ dnf5 -y install \
 # Bewust NIET: liquidio/netronome/qed/mlxsw_spectrum/mrvlprestera (datacenter-switch/server-NICs)
 # en dvb/iscan (TV-tuner/scanner) — komen nooit in een laptop voor.
 
-# Chromium: camera via PipeWire/portal zien (nodig voor libcamera/IPU6-camera's; UVC blijft ook werken).
-# Standaard UIT in Chromium; Fedora-chromium sourcet /etc/chromium/chromium.conf → idempotent appenden.
-CONF=/etc/chromium/chromium.conf
-if [ -f "$CONF" ] && ! grep -q 'WebRtcPipeWireCamera' "$CONF"; then
-  printf '\n# Coolbx OS: camera via PipeWire/portal (libcamera)\nCHROMIUM_FLAGS="${CHROMIUM_FLAGS} --enable-features=WebRtcPipeWireCamera"\n' >> "$CONF"
-fi
+# Flathub als SYSTEM-remote (ADR-0030): beheerde apps via ansible (`flatpak install --system`), overleven
+# resets, zichtbaar voor alle gebruikers. Netwerk nodig tijdens de build (rootful build heeft dat).
+flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
+  || echo "warn: flathub-remote niet toegevoegd (geen netwerk?) — ansible voegt 'm anders toe"
 
 dnf5 clean all
 

@@ -1,5 +1,6 @@
-// Sta de Toetsmodus-launcher toe om de kiosk te starten zonder wachtwoord.
-// Strikt gescoped op exact één programma (review-aanbeveling: geen wildcard).
+// Sta de kiosk-app-launchers toe om de kiosk te starten zonder wachtwoord (ADR-0029).
+// Strikt gescoped op exact één programma; het enige argument is een app-ID die tegen de
+// root-only registry wordt gevalideerd (pkexec geeft geen omgeving door).
 polkit.addRule(function(action, subject) {
     if (action.id == "org.freedesktop.policykit.exec" &&
         action.lookup("program") == "/usr/bin/coolbx-kiosk-start" &&

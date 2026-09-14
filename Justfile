@@ -2,6 +2,8 @@ export image_name := env("IMAGE_NAME", "coolbx-os")
 export default_tag := env("DEFAULT_TAG", "latest")
 export base_image := env("BASE_IMAGE", "quay.io/fedora/fedora-bootc:43")
 export features := env("FEATURES", "")
+# Volledige dev-set voor de lokale e2e-loop (ROADMAP v3 §3 "dev"): leerling-set + chromium + focus.
+export dev_features := env("DEV_FEATURES", "chrome chromium kiosk focus branding hardware fleet managed apps media-nonfree")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
 export rootfs := env("ROOTFS", "btrfs")
 
@@ -34,10 +36,11 @@ build-prod tag=default_tag:
       --tag "localhost/{{ image_name }}:{{ tag }}" .
 
 # Dev-image MÉT autologin-testuser (tester/tester) — enkel voor de lokale VM-loop, NOOIT prod.
+# FEATURES leeg → de volledige dev-set (DEV_FEATURES).
 build-dev tag=default_tag:
     podman build \
       --build-arg BASE_IMAGE="{{ base_image }}" \
-      --build-arg FEATURES="{{ features }}" \
+      --build-arg FEATURES="{{ if features == "" { dev_features } else { features } }}" \
       --build-arg ENABLE_FIRSTBOOT_USER=1 \
       --tag "localhost/{{ image_name }}:{{ tag }}" .
 
@@ -53,14 +56,15 @@ build-qcow2 tag=default_tag:
       echo "FOUT: er draait een VM (pid $(cat /tmp/coolbx-vm.pid)) op de qcow2. Doe eerst 'just vm-stop'."; exit 1
     fi
     IMG="localhost/{{ image_name }}:{{ tag }}"
-    echo ">> rootful DEV-build $IMG (network=host → DNS; base={{ base_image }}, features='{{ features }}')"
+    FEATS="{{ if features == "" { dev_features } else { features } }}"
+    echo ">> rootful DEV-build $IMG (network=host → DNS; base={{ base_image }}, features='$FEATS')"
     # Bouw direct in rootful storage (--network=host geeft DNS). Bespaart de dure
     # 'podman save | sudo podman load' (≈2,5 GB stream) én dubbel schijfgebruik;
     # BIB leest dezelfde /var/lib/containers/storage. Laag-cache blijft persistent.
     # FEATURES_CACHEBUST: bust de feature-laag altijd (bind-mount cachet niet op inhoud).
     sudo podman build --network=host \
       --build-arg BASE_IMAGE="{{ base_image }}" \
-      --build-arg FEATURES="{{ features }}" \
+      --build-arg FEATURES="$FEATS" \
       --build-arg FEATURES_CACHEBUST="$(date +%s)" \
       --build-arg ENABLE_FIRSTBOOT_USER=1 \
       --tag "$IMG" .
@@ -258,16 +262,17 @@ vm-sync feat="kiosk":
     # de dev-tooling breken (DeveloperToolsAvailability:2 blokkeert Runtime.evaluate/CDP). ADR-0022.
     sshc 'echo tester | sudo -S rm -f /etc/chromium/policies/managed/coolbx-hardening-prod.json'
 
-# Start de kiosk in de draaiende VM (na vm-sync). Stop een lopende kiosk eerst.
-vm-kiosk url="file:///usr/share/coolbx/kiosk/placeholder.html":
+# Start een kiosk-app in de draaiende VM (na vm-sync). Stop een lopende kiosk eerst.
+# `just vm-kiosk` = dev-app 'test' (placeholder); `just vm-kiosk focus` = Toetsmodus.
+vm-kiosk app="test":
     sshpass -p tester ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 tester@127.0.0.1 \
-      "echo tester | sudo -S sh -c 'systemctl stop coolbx-kiosk 2>/dev/null; systemctl reset-failed coolbx-kiosk 2>/dev/null; umount -l /var/lib/coolbx-kiosk 2>/dev/null; coolbx-vt-lock unlock 2>/dev/null; sleep 2; env COOLBX_KIOSK_URL={{ url }} /usr/bin/coolbx-kiosk-start'"
+      "echo tester | sudo -S sh -c 'systemctl stop coolbx-kiosk 2>/dev/null; systemctl reset-failed coolbx-kiosk 2>/dev/null; umount -l /var/lib/coolbx-kiosk 2>/dev/null; coolbx-vt-lock unlock 2>/dev/null; sleep 2; /usr/bin/coolbx-kiosk-start {{ app }}'"
 
-# DEV-ONLY (ADR-0020): start de kiosk MÉT CDP-debugpoort 9222 (COOLBX_KIOSK_DEBUG=1) voor de e2e-harness.
+# DEV-ONLY (ADR-0020): start een kiosk-app MÉT CDP-debugpoort 9222 (COOLBX_KIOSK_DEBUG=1) voor de e2e-harness.
 # Vereist eerst `just vm-sync kiosk` (de debug-gate zit in chromium-kiosk.sh). Nooit in prod.
-vm-kiosk-debug url="file:///usr/share/coolbx/kiosk/placeholder.html":
+vm-kiosk-debug app="test":
     sshpass -p tester ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 tester@127.0.0.1 \
-      "echo tester | sudo -S sh -c 'systemctl stop coolbx-kiosk 2>/dev/null; systemctl reset-failed coolbx-kiosk 2>/dev/null; umount -l /var/lib/coolbx-kiosk 2>/dev/null; coolbx-vt-lock unlock 2>/dev/null; sleep 2; env COOLBX_KIOSK_DEBUG=1 COOLBX_KIOSK_URL={{ url }} /usr/bin/coolbx-kiosk-start'"
+      "echo tester | sudo -S sh -c 'systemctl stop coolbx-kiosk 2>/dev/null; systemctl reset-failed coolbx-kiosk 2>/dev/null; umount -l /var/lib/coolbx-kiosk 2>/dev/null; coolbx-vt-lock unlock 2>/dev/null; sleep 2; env COOLBX_KIOSK_DEBUG=1 /usr/bin/coolbx-kiosk-start {{ app }}'"
 
 # Spreek het Chrome DevTools Protocol tegen de kiosk-Chromium in de VM (laag C, ADR-0020).
 # Opent een ephemere SSH local-forward (-L 9222) via een ControlMaster en draait scripts/vm-cdp.py.

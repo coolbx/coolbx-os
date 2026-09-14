@@ -14,6 +14,17 @@ from harness import VM, wait_for, _SSH_BASE, CDP_PORT, SSH_PORT, SSH_PASS, SSH_U
 _CTL = "/tmp/coolbx-e2e-cdp.sock"
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "focus: vereist de optionele focus-feature in de image (ADR-0029)")
+
+
+@pytest.fixture(autouse=True)
+def _skip_without_focus(request, vm):
+    """Focus-tests (pytestmark = pytest.mark.focus) skippen netjes op een image zonder focus-feature."""
+    if request.node.get_closest_marker("focus") and not vm.has_feature_focus():
+        pytest.skip("focus-feature niet in deze image (FEATURES zonder 'focus')")
+
+
 @pytest.fixture(scope="session")
 def vm():
     v = VM()

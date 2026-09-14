@@ -18,6 +18,8 @@ import struct
 
 import pytest
 
+pytestmark = pytest.mark.focus
+
 HOST = "/usr/libexec/coolbx-attest-host"
 KIOSK_USER = "coolbx-kiosk"
 

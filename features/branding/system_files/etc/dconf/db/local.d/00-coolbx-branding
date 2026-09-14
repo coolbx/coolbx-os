@@ -18,8 +18,5 @@ secondary-color='#141210'
 picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-login.png'
 primary-color='#141210'
 
-[org/gnome/shell]
-favorite-apps=['chromium-browser.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Calculator.desktop', 'coolbx-toetsmodus.desktop']
-
 [org/gnome/desktop/wm/preferences]
 button-layout='appmenu:minimize,maximize,close'

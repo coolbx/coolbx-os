@@ -15,6 +15,8 @@ import pytest
 
 from harness import wait_for
 
+pytestmark = pytest.mark.focus
+
 UPDATE_XML = "https://focus-dashboard.edugolo.be/extension-updates/update.xml"
 SERVER_URL = "https://focus-api.edugolo.be"
 

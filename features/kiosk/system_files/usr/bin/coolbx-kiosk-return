@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# ExecStopPost van de kiosk-sessie: ontgrendel VT-switch en keer terug naar de GNOME-VT.
+# ExecStopPost van de kiosk-sessie: ontgrendel VT-switch, ruim sessie-policy op, keer terug naar GNOME.
 # (Eerst unlock, anders weigert chvt door de VT_LOCKSWITCH.)
 set -uo pipefail
 /usr/bin/coolbx-vt-lock unlock 2>/dev/null || true
-# Examen-/lobby-policy opruimen (B3.c): de vrije modus mag nooit onder de
-# kiosk-lockdown vallen (de Chromium-policy-dir is globaal).
-if [ -x /usr/libexec/coolbx-exam-policy ]; then
-  /usr/libexec/coolbx-exam-policy clear || true
+# Per-app sessie-policy weg: de vrije modus mag nooit onder de kiosk-lockdown vallen
+# (de browser-policy-dir is globaal).
+rm -f /etc/chromium/policies/managed/coolbx-kiosk-app.json
+# Feature-hooks (bv. focus: exam-policy clear).
+APP="$(cat /run/coolbx-kiosk/app 2>/dev/null || true)"
+if [ -d /usr/share/coolbx/kiosk/hooks.d/post-stop ]; then
+  for h in /usr/share/coolbx/kiosk/hooks.d/post-stop/*; do
+    [ -x "$h" ] && COOLBX_KIOSK_APP="$APP" "$h" || true
+  done
 fi
+rm -f /run/coolbx-kiosk/app /run/coolbx-kiosk/name
 /usr/bin/chvt "${1:-2}"

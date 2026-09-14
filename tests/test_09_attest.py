@@ -3,7 +3,10 @@
 Verifieert de OS-kant van de anti-spoofing: per-toestel-secret (root-only), signing-daemon die tekent
 zonder het secret te lekken, en de native-messaging-host-manifest met de exacte Focus-extensie-ID.
 """
+import pytest
 import re
+
+pytestmark = pytest.mark.focus
 
 EXT_ID = "makdakigkdbicdljgdclgnejachcohag"
 

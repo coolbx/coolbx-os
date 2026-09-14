@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Focus-hook: examen-/lobby-policy opruimen bij kiosk-einde (de policy-dir is globaal).
+set -uo pipefail
+[ -x /usr/libexec/coolbx-exam-policy ] && /usr/libexec/coolbx-exam-policy clear || true

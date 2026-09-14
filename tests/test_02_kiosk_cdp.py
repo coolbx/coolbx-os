@@ -16,7 +16,7 @@ def test_single_window_no_handoff_stack(kiosk):
 
 
 def test_page_title(kiosk):
-    assert kiosk.cdp("title") == "Coolbx Focus — Toetsmodus"
+    assert kiosk.cdp("title") == "Coolbx OS — Testmodus"
 
 
 def test_page_is_placeholder(kiosk):
@@ -26,7 +26,7 @@ def test_page_is_placeholder(kiosk):
     import json
     d = json.loads(info)
     assert d["url"].endswith("/placeholder.html")
-    assert "Toetsmodus" in d["body"]
+    assert "Testmodus" in d["body"]
 
 
 # (De managed-storage wordt nu robuust geverifieerd tegen de echte extensie in
@@ -38,5 +38,5 @@ def test_policy_oracle_reads_applied_state(kiosk):
     pols = kiosk.cdp("policy")
     assert isinstance(pols, list)
     names = {p.get("name") for p in pols}
-    # onze uitgerolde coolbx-managed.json bevat een _comment-veld → zichtbaar als gezet beleid
+    # onze uitgerolde coolbx-enforcement.json bevat een _comment-veld → zichtbaar als gezet beleid
     assert "_comment" in names, f"verwacht _comment in toegepaste policies, kreeg: {names}"

@@ -15,11 +15,14 @@ FDE hoort bij het hardware-installatiepad (bootc install --block-setup
 tpm2-luks, docs/ATTESTATION.md) — de dev-qcow2 heeft geen LUKS; enroll-info
 rapporteert dat eerlijk (fde=false).
 """
+import pytest
 import hashlib
 import hmac
 import json
 
 from harness import wait_for
+
+pytestmark = pytest.mark.focus
 
 
 def _enroll_info(vm):

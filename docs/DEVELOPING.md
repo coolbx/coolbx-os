@@ -19,7 +19,7 @@ just vm-stop
 ### Base / features kiezen (env)
 ```bash
 BASE_IMAGE=ghcr.io/ublue-os/base-main:43 just build-qcow2   # base-spike (S1)
-FEATURES="kiosk focus" just build                            # optionele features (ADR-0012)
+FEATURES="chrome kiosk" just build                          # optionele features (ADR-0012/0029); leeg = volledige dev-set
 ROOTFS=ext4 just build-qcow2                                 # FOG-vriendelijke rootfs
 ```
 
@@ -35,7 +35,7 @@ transiente schrijfbare `/usr`-overlay in de draaiende VM:
 just dev-vm            # (of dev-vm-gui) boot de VM één keer
 # bewerk features/<feat>/system_files/...
 just vm-sync kiosk     # bootc usr-overlay + push de feature live naar /usr+/etc (transient tot reboot)
-just vm-kiosk          # (her)start de kiosk met de live-gesyncte bestanden
+just vm-kiosk          # (her)start de dev-kiosk-app 'test' (of: just vm-kiosk focus)
 just vm-shot           # screenshot
 ```
 De repo blijft de bron van waarheid; de volgende echte `build-qcow2` bakt de wijzigingen in. usr-overlay-wijzigingen

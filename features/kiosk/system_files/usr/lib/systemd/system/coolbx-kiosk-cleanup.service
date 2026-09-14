@@ -1,0 +1,13 @@
+# Crash-vangnet: een per-app kiosk-policy mag een reboot nooit overleven — anders start de vrije
+# GNOME-modus onder de kiosk-lockdown (de browser-policy-dir is globaal).
+[Unit]
+Description=Coolbx: verwijder achtergebleven kiosk-sessie-policy
+ConditionPathExists=/etc/chromium/policies/managed/coolbx-kiosk-app.json
+Before=gdm.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rm -f /etc/chromium/policies/managed/coolbx-kiosk-app.json
+
+[Install]
+WantedBy=multi-user.target

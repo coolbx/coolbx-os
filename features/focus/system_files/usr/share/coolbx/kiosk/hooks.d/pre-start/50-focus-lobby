@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Focus-hook: default-deny lobby-policy zodra de Focus-kiosk-app start (B3.c, F-03-007).
+# ALLEEN PROD (zelfde gate als coolbx-hardening-prod.json — de default-deny blokkeert de dev-
+# placeholder). Tijdens een echte examen-start schrijft coolbx-attestd de policy los van dit pad.
+set -uo pipefail
+[ "${COOLBX_KIOSK_APP:-}" = "focus" ] || exit 0
+PROD_HARDENING=/etc/chromium/policies/managed/coolbx-hardening-prod.json
+if [ -x /usr/libexec/coolbx-exam-policy ] && [ -f "$PROD_HARDENING" ]; then
+  /usr/libexec/coolbx-exam-policy lobby || true
+fi

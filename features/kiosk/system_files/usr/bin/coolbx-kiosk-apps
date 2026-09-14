@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Coolbx OS — kiosk-app-registry (ADR-0029).
+
+Kiosk-apps zijn DATA: één YAML per app in
+  /usr/share/coolbx/kiosk/apps.d/<id>.yaml   (image-defaults, door features geleverd)
+  /etc/coolbx/kiosk-apps.d/<id>.yaml         (toestelconfig via ansible; wint bij gelijke id)
+Velden: id (= bestandsnaam), name, url, icon (optioneel), allow_domains (optioneel: lijst hostnames →
+URLBlocklist '*' + URLAllowlist tijdens de sessie), policy (optioneel: extra browser-policies tijdens
+de sessie), hidden (optioneel: geen launcher genereren).
+
+Subcommando's:
+  list                  ids + namen
+  show <id> [--json]    app-definitie (samengevoegd)
+  policy <id>           browser-policy-JSON voor de sessie (leeg object als er geen is)
+  apply [--image]       launchers (.desktop) genereren + dock-favorieten (dconf) bijwerken.
+                        --image = build-time (schrijft onder /usr/share); zonder = runtime (/usr/local)
+"""
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover
+    yaml = None
+
+IMAGE_DIR = "/usr/share/coolbx/kiosk/apps.d"
+ETC_DIR = "/etc/coolbx/kiosk-apps.d"
+LAUNCHER_IMAGE_DIR = "/usr/share/applications"
+LAUNCHER_RUNTIME_DIR = "/usr/local/share/applications"
+DCONF_FAVORITES = "/etc/dconf/db/local.d/20-coolbx-kiosk-apps"
+ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+DOMAIN_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")
+BASE_FAVORITES = ["google-chrome.desktop", "chromium-browser.desktop",
+                  "org.gnome.Nautilus.desktop", "org.gnome.Calculator.desktop"]
+
+
+def _load(path):
+    with open(path, encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) if yaml else json.load(fh)
+    return data or {}
+
+
+def load_apps():
+    """id → definitie. /etc wint van /usr/share. Ongeldige definities worden overgeslagen (stderr)."""
+    apps = {}
+    for base in (IMAGE_DIR, ETC_DIR):
+        for path in sorted(glob.glob(os.path.join(base, "*.yaml"))):
+            app_id = os.path.basename(path)[:-5]
+            if not ID_RE.match(app_id):
+                print(f"kiosk-apps: ongeldige id overgeslagen: {path}", file=sys.stderr)
+                continue
+            try:
+                d = _load(path)
+            except Exception as exc:  # noqa: BLE001
+                print(f"kiosk-apps: {path}: {exc}", file=sys.stderr)
+                continue
+            if not isinstance(d, dict) or not d.get("url") or not d.get("name"):
+                print(f"kiosk-apps: {path}: 'name' en 'url' zijn verplicht", file=sys.stderr)
+                continue
+            d["id"] = app_id
+            d["source"] = path
+            apps[app_id] = d
+    return apps
+
+
+def session_policy(app):
+    """Browser-policy die ALLEEN tijdens deze kiosk-sessie geldt (coolbx-kiosk-app.json)."""
+    pol = {}
+    domains = [str(x).lower().strip() for x in (app.get("allow_domains") or [])]
+    domains = [d for d in domains if DOMAIN_RE.match(d)]
+    if domains:
+        pol["URLBlocklist"] = ["*"]
+        # Chrome matcht een kale hostname inclusief subdomeinen.
+        pol["URLAllowlist"] = sorted(set(domains))
+    extra = app.get("policy") or {}
+    if isinstance(extra, dict):
+        for k, v in extra.items():
+            if re.match(r"^[A-Za-z][A-Za-z0-9]*$", str(k)):
+                pol[str(k)] = v
+    return pol
+
+
+def write_launchers(image_mode):
+    out_dir = LAUNCHER_IMAGE_DIR if image_mode else LAUNCHER_RUNTIME_DIR
+    os.makedirs(out_dir, exist_ok=True)
+    apps = load_apps()
+    # Stale launchers van verdwenen apps opruimen (alleen onze eigen bestanden).
+    for old in glob.glob(os.path.join(out_dir, "coolbx-kiosk-*.desktop")):
+        app_id = os.path.basename(old)[len("coolbx-kiosk-"):-len(".desktop")]
+        if app_id not in apps or apps[app_id].get("hidden"):
+            os.remove(old)
+    favorites = list(BASE_FAVORITES)
+    for app_id, app in sorted(apps.items()):
+        if app.get("hidden"):
+            continue
+        name = str(app["name"]).replace("\n", " ")
+        icon = str(app.get("icon") or "coolbx-kiosk")
+        desktop = (
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            f"Name={name}\n"
+            f"Comment=Start '{name}' in de vergrendelde Coolbx-kiosk\n"
+            f"Exec=pkexec /usr/bin/coolbx-kiosk-start {app_id}\n"
+            f"Icon={icon}\n"
+            "Terminal=false\n"
+            "Categories=Education;\n"
+            "X-Coolbx-Kiosk-App=true\n"
+        )
+        fname = f"coolbx-kiosk-{app_id}.desktop"
+        with open(os.path.join(out_dir, fname), "w", encoding="utf-8") as fh:
+            fh.write(desktop)
+        favorites.append(fname)
+    # Dock-favorieten: basis + kiosk-apps (systeem-default; gebruiker mag afwijken).
+    os.makedirs(os.path.dirname(DCONF_FAVORITES), exist_ok=True)
+    with open(DCONF_FAVORITES, "w", encoding="utf-8") as fh:
+        fh.write("# Coolbx OS — gegenereerd door coolbx-kiosk-apps; niet handmatig bewerken\n"
+                 "[org/gnome/shell]\n"
+                 f"favorite-apps={json.dumps(favorites).replace(chr(34), chr(39))}\n")
+    try:
+        subprocess.run(["dconf", "update"], check=False, capture_output=True)
+    except FileNotFoundError:
+        pass
+    return apps
+
+
+def main(argv):
+    if len(argv) < 2 or argv[1] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+    cmd = argv[1]
+    if cmd == "list":
+        for app_id, app in sorted(load_apps().items()):
+            print(f"{app_id}\t{app['name']}\t{app['url']}")
+        return 0
+    if cmd in ("show", "policy"):
+        if len(argv) < 3:
+            print("gebruik: coolbx-kiosk-apps show|policy <id>", file=sys.stderr)
+            return 2
+        app = load_apps().get(argv[2])
+        if not app:
+            print(f"onbekende kiosk-app: {argv[2]}", file=sys.stderr)
+            return 1
+        if cmd == "policy":
+            print(json.dumps(session_policy(app), indent=2))
+        elif "--json" in argv:
+            print(json.dumps(app, indent=2))
+        else:
+            for k, v in app.items():
+                print(f"{k}: {v}")
+        return 0
+    if cmd == "apply":
+        apps = write_launchers(image_mode="--image" in argv)
+        print(f"kiosk-apps: {len(apps)} app(s) → launchers bijgewerkt")
+        return 0
+    print(f"onbekend subcommando: {cmd}", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

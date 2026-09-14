@@ -25,8 +25,8 @@ pytestmark = pytest.mark.skipif(
 
 def test_ocr_finds_kiosk_text(kiosk):
     # De kiosk staat op het actieve VT → screendump toont 'm. Zoek de placeholder-tekst.
-    pos = kiosk.find_text("Toetsmodus")
-    assert pos is not None, "OCR vond 'Toetsmodus' niet op het scherm"
+    pos = kiosk.find_text("Testmodus")
+    assert pos is not None, "OCR vond 'Testmodus' niet op het scherm"
     x, y = pos
     assert 0 <= x <= W and 0 <= y <= H, f"coördinaat buiten scherm: {pos}"
 

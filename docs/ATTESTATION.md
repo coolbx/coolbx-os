@@ -4,7 +4,7 @@ Anti-spoofing: bewijst aan de Focus-server dat de Focus-extensie op een **echt C
 (en niet op een willekeurige laptop met de extensie). Sluit de casual-spoof-gap; relay-resistentie + TPM
 zijn fast-follow.
 
-## Architectuur (OS-kant — gebouwd in de `attest`-feature)
+## Architectuur (OS-kant — gebouwd in de `focus`-feature (voorheen `attest`, ADR-0029))
 
 ```
 Focus-extensie ──connectNative("be.edugolo.coolbx.attest")──▶ coolbx-attest-host  (draait als kiosk-user)

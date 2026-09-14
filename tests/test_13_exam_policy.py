@@ -11,6 +11,8 @@ import pytest
 
 from harness import SSH_PASS
 
+pytestmark = pytest.mark.focus
+
 POLICY = "/etc/chromium/policies/managed/coolbx-exam.json"
 
 
