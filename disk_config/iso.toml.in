@@ -1,0 +1,51 @@
+# bootc-image-builder blueprint voor de school-installatie-ISO (ADR-0032, Fase E).
+# Sjabloon: `just build-iso <rol>` vult de @PLACEHOLDERS@ in uit school.env (git-genegeerd).
+# Minimale Anaconda: enkel schijfkeuze; netwerk/gebruikers/tijdzone komen van het OS zelf.
+
+[customizations.installer.modules]
+enable = [
+  "org.fedoraproject.Anaconda.Modules.Storage",
+  "org.fedoraproject.Anaconda.Modules.Runtime",
+]
+disable = [
+  "org.fedoraproject.Anaconda.Modules.Network",
+  "org.fedoraproject.Anaconda.Modules.Security",
+  "org.fedoraproject.Anaconda.Modules.Services",
+  "org.fedoraproject.Anaconda.Modules.Subscription",
+  "org.fedoraproject.Anaconda.Modules.Timezone",
+  "org.fedoraproject.Anaconda.Modules.Users",
+  "org.fedoraproject.Anaconda.Modules.Localization",
+]
+
+[customizations.installer.kickstart]
+contents = """
+lang nl_BE.UTF-8
+keyboard --vckeymap=be --xlayouts='be'
+timezone Europe/Brussels --utc
+reboot
+
+%post --log=/var/log/coolbx-install.log
+set -e
+# Toestel inschrijven bij de school (ADR-0032): rol/profiel/kanaal + config-repo + vault-wachtwoord.
+install -d -m0755 /etc/coolbx
+cat > /etc/coolbx/device.yaml <<'YAML'
+role: @ROLE@
+profile: "@PROFILE@"
+channel: @CHANNEL@
+YAML
+cat > /etc/coolbx/ansible.conf <<'CONF'
+ANSIBLE_PULL_URL="@CONFIG_REPO_URL@"
+ANSIBLE_PULL_PLAYBOOK="local.yml"
+CONF
+install -m0600 /dev/null /etc/coolbx/vault-pass
+printf '%s\\n' '@VAULT_PASS@' > /etc/coolbx/vault-pass
+# Beheerder 'coolbx' (ADR-0031): wachtwoord-hash uit school.env (sysusers maakt het account bij boot;
+# hier al in shadow zetten zodat het meteen werkt).
+if [ -n '@ADMIN_HASH@' ]; then
+  getent passwd coolbx >/dev/null 2>&1 || useradd -u 900 -g 900 -G wheel -d /var/home/coolbx -s /bin/bash -M coolbx 2>/dev/null || true
+  usermod -p '@ADMIN_HASH@' coolbx 2>/dev/null || true
+fi
+# Updates via GHCR i.p.v. de in de ISO ingebakken localhost-ref.
+bootc switch --mutate-in-place --transport registry @IMAGE_REF@ || true
+%end
+"""

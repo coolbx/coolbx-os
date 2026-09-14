@@ -161,7 +161,8 @@ class VM:
 
     def chromium_running(self):
         # Chrome óf Chromium (browser-agnostisch, ADR-0033). comm is afgekapt op 15 tekens.
-        return self.ssh_ok("pgrep chromium >/dev/null 2>&1 || pgrep -f /opt/google/chrome/chrome >/dev/null 2>&1")
+        # -x op comm: een `pgrep -f`-patroon zou de eigen ssh-commandoregel matchen.
+        return self.ssh_ok("pgrep chromium >/dev/null 2>&1 || pgrep -x chrome >/dev/null 2>&1")
 
     def has_feature_focus(self):
         return self.ssh_ok("test -f /etc/chromium/policies/managed/coolbx-managed.json")

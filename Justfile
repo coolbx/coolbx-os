@@ -58,6 +58,46 @@ build-role rol tag="":
       --build-arg ENABLE_FIRSTBOOT_USER=0 \
       --tag "localhost/{{ image_name }}:$TAG" .
 
+# School-installatie-ISO voor een rol (Fase E, ADR-0032): `just build-iso leerling` → output/bootiso/install.iso.
+# Leest school.env (git-genegeerd; zie school.env.example): config-repo-URL, vault-wachtwoord, beheerder-hash.
+# Bouwt eerst de rol-image (prod) en bakt die in de ISO; de kickstart schrijft device.yaml/ansible.conf/vault-pass
+# en zet het toestel via `bootc switch` op de GHCR-rol-tag voor updates.
+build-iso rol:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -f school.env ] || { echo "school.env ontbreekt — kopieer school.env.example en vul in"; exit 1; }
+    # shellcheck source=/dev/null
+    . ./school.env
+    VAULT_PASS="$(cat "${VAULT_PASS_FILE}")"
+    ADMIN_HASH="$( [ -s "${ADMIN_HASH_FILE:-/nonexistent}" ] && cat "${ADMIN_HASH_FILE}" || true )"
+    just build-role "{{ rol }}"
+    mkdir -p output
+    python3 - "{{ rol }}" > output/iso-{{ rol }}.toml <<'PY'
+    import os, sys
+    rol = sys.argv[1]
+    t = open("disk_config/iso.toml.in").read()
+    rep = {"@ROLE@": rol, "@PROFILE@": os.environ.get("PROFILE", ""), "@CHANNEL@": os.environ.get("CHANNEL", "stabiel"),
+           "@CONFIG_REPO_URL@": os.environ["CONFIG_REPO_URL"], "@VAULT_PASS@": os.environ["VAULT_PASS"],
+           "@ADMIN_HASH@": os.environ.get("ADMIN_HASH", ""), "@IMAGE_REF@": os.environ["IMAGE_REGISTRY"] + ":" + rol}
+    for k, v in rep.items():
+        t = t.replace(k, v)
+    sys.stdout.write(t)
+    PY
+    chmod 0600 output/iso-{{ rol }}.toml
+    echo ">> bootc-image-builder → anaconda-iso (rol {{ rol }})"
+    sudo podman run --rm --privileged --pull=newer \
+      --security-opt label=type:unconfined_t \
+      -v "$(pwd)/output/iso-{{ rol }}.toml:/config.toml:ro" \
+      -v "$(pwd)/output:/output" \
+      -v /var/lib/containers/storage:/var/lib/containers/storage \
+      "{{ bib_image }}" \
+      --type anaconda-iso --use-librepo=True \
+      "localhost/{{ image_name }}:{{ rol }}"
+    sudo podman run --rm --security-opt label=disable -v "$(pwd)/output:/output" \
+      "{{ base_image }}" chown -R "$(id -u):$(id -g)" /output
+    rm -f output/iso-{{ rol }}.toml
+    echo ">> klaar: output/bootiso/install.iso (rol {{ rol }})"
+
 # Bouw een bootable qcow2 via bootc-image-builder.
 # Rootless build (heeft netwerk) → image via save|load naar root-storage (rootful build
 # heeft hier geen DNS) → BIB leest /var/lib/containers/storage.

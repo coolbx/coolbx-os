@@ -27,15 +27,30 @@ line "Update-timer" "$(systemctl is-enabled coolbx-update.timer 2>/dev/null || e
 nextrun="$(systemctl list-timers coolbx-update.timer --no-legend 2>/dev/null | awk '{print $1, $2}')"
 line "Volgende update" "${nextrun:-onbekend}"
 
-# Kiosk / Focus-gereedheid (lokaal, géén focus-api-call)
-line "Kiosk-launcher" "$(test -x /usr/bin/coolbx-kiosk-start && echo aanwezig || echo ONTBREEKT)"
-line "Focus-extensie-policy" "$(test -f /etc/chromium/policies/managed/coolbx-managed.json && echo aanwezig || echo ONTBREEKT)"
+# Toestel & config (ADR-0032): rol/profiel/kanaal uit device.yaml, laatste ansible-pull
+yv() { sed -n "s/^$1:[[:space:]]*['\"]\{0,1\}\([^'\"#]*\)['\"]\{0,1\}.*$/\1/p" /etc/coolbx/device.yaml 2>/dev/null | head -1; }
+line "Rol / profiel / kanaal" "$(yv role || echo ?) / $(p="$(yv profile)"; echo "${p:-<rol-standaard>}") / $(yv channel || echo ?)"
+serial="$(cat /sys/class/dmi/id/product_serial 2>/dev/null || echo '(enkel als root leesbaar)')"
+line "Serienummer" "${serial:-onbekend}"
+if [ -r /var/lib/coolbx/ansible-status.json ]; then
+  line "Config-pull" "$(python3 -c 'import json;d=json.load(open("/var/lib/coolbx/ansible-status.json"));print(("OK" if d["rc"]==0 else "FOUT rc=%s"%d["rc"])+" — "+d["time"]+" (branch "+d["branch"]+")")' 2>/dev/null)"
+else
+  line "Config-pull" "$(grep -q PLACEHOLDER /etc/coolbx/ansible.conf 2>/dev/null && echo 'niet geconfigureerd' || echo 'nog niet gedraaid')"
+fi
+line "Google-login" "$(test -f /etc/sssd/conf.d/coolbx-google.conf && systemctl is-active sssd.service 2>/dev/null || echo 'niet ingesteld')"
+line "Powerwash" "$(test -f /var/lib/coolbx/powerwash && echo 'AANGEVRAAGD (volgende boot)' || echo nee)"
 
-# Toestel-attestatie
-line "Attestatie-daemon" "$(systemctl is-active coolbx-attestd.service 2>/dev/null || echo n/a)"
-did=""
-[ -r /etc/coolbx/device-secret ] && did="$(python3 -c 'import hashlib;print(hashlib.sha256(("coolbx:"+open("/etc/machine-id").read().strip()).encode()).hexdigest()[:32])' 2>/dev/null)"
-line "Toestel-ID" "${did:-(enkel als root leesbaar)}"
+# Kiosk (feature-bewust, ADR-0029) + Focus (optioneel)
+if [ -x /usr/bin/coolbx-kiosk-start ]; then
+  line "Kiosk-apps" "$(/usr/bin/coolbx-kiosk-apps list 2>/dev/null | cut -f1 | tr '\n' ' ')"
+fi
+if [ -f /etc/chromium/policies/managed/coolbx-managed.json ]; then
+  line "Focus-extensie-policy" "aanwezig"
+  line "Attestatie-daemon" "$(systemctl is-active coolbx-attestd.service 2>/dev/null || echo n/a)"
+  did=""
+  [ -r /etc/coolbx/device-secret ] && did="$(python3 -c 'import hashlib;print(hashlib.sha256(("coolbx:"+open("/etc/machine-id").read().strip()).encode()).hexdigest()[:32])' 2>/dev/null)"
+  line "Toestel-ID" "${did:-(enkel als root leesbaar)}"
+fi
 
 # Gefaalde units (rode vlag)
 failed="$(systemctl --failed --no-legend --plain 2>/dev/null | wc -l)"

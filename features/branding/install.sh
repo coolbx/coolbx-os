@@ -54,16 +54,20 @@ kver=$(ls /usr/lib/modules 2>/dev/null | head -n1)
 if command -v dracut >/dev/null 2>&1 && [ -n "${kver:-}" ] \
    && [ -f "/usr/lib/modules/${kver}/initramfs.img" ]; then
     echo "dracut: regenereer initramfs voor ${kver} (incl. plymouth/coolbx)"
+    # fedora-bootc: /root → var/roothome (symlink) en de doelmap bestaat pas at-runtime (tmpfiles).
+    # Nieuwere dracut installeert '/root' mee en faalt hard op de dode symlink → tijdelijk aanmaken.
+    rh_tmp=0; [ -d /var/roothome ] || { mkdir -p /var/roothome; rh_tmp=1; }
     # Laptops booten van lokale schijf → netwerk/SAN-storage-init weglaten.
     # Krimpt de initramfs en verkort het GRUB→Plymouth-laadmoment (zwarte flits).
     # Lokale drivers (nvme/ahci/sd/mmc/virtio/btrfs/ext4) blijven via kernel-modules.
     dracut --force --no-hostonly --add plymouth \
         --omit "nfs nbd cifs iscsi fcoe fcoe-uefi multipath nvmf" \
         "/usr/lib/modules/${kver}/initramfs.img" "${kver}"
+    [ "$rh_tmp" = 1 ] && rmdir /var/roothome 2>/dev/null || true
     lsinitrd "/usr/lib/modules/${kver}/initramfs.img" 2>/dev/null \
         | grep -qi 'themes/coolbx' \
         && echo "dracut: coolbx-thema zit in initramfs ✓" \
-        || echo "warn: coolbx-thema NIET in initramfs"
+        || { echo "::error::coolbx-thema NIET in initramfs (dracut faalde)"; exit 1; }
 else
     echo "warn: dracut/initramfs niet gevonden (kver=${kver:-?})"
 fi
