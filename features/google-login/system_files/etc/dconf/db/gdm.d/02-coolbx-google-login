@@ -1,3 +1,5 @@
-# Google-login (ADR-0031): geen gebruikerslijst (LDAP kent honderden accounts) → naamveld.
+# Google-login (ADR-0031): geen gebruikerslijst (LDAP kent honderden accounts) → naamveld + hint.
 [org/gnome/login-screen]
 disable-user-list=true
+banner-message-enable=true
+banner-message-text='Meld je aan met je schoolaccount'

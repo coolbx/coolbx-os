@@ -42,3 +42,4 @@ oude op status "Vervangen door ADR-XXXX").
 | [0032](0032-config-naad-device-yaml-profielen-serienummer.md) | Config-naad: device.yaml, git-profielen, platte serienummerlijst | Aanvaard |
 | [0033](0033-google-chrome-enterprise-core.md) | Google Chrome + Chrome Enterprise Core als `chrome`-feature | Aanvaard |
 | [0034](0034-powerwash-zonder-grub.md) | Powerwash zonder GRUB-ingang; fysieke beveiliging uitgesteld | Aanvaard |
+| [0035](0035-design-papier-en-inkt.md) | Design: "papier & inkt", vector-eerst, schaalt met het scherm | Aanvaard |

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160">
+  <defs>
+    <pattern id="lijn" width="3840" height="57" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="56" x2="3840" y2="56" stroke="#2b2620" stroke-opacity="0.055" stroke-width="2"/>
+    </pattern>
+    <radialGradient id="vlek" cx="3149" cy="1901" r="1613" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#50ce96" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#50ce96" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="3840" height="2160" fill="#faf8f3"/>
+  <rect width="3840" height="2160" fill="url(#lijn)"/>
+  <rect width="3840" height="2160" fill="url(#vlek)"/>
+  <line x1="319" y1="0" x2="319" y2="2160" stroke="#50ce96" stroke-opacity="0.35" stroke-width="4"/>
+  <circle cx="3149" cy="1901" r="18" fill="#50ce96"/>
+</svg>

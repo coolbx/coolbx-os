@@ -13,8 +13,10 @@ def test_pull_timer_enabled(vm):
     assert vm.ssh_ok("systemctl is-enabled --quiet coolbx-ansible-pull.timer")
 
 
-def test_laptop_group_default_leerlingen(vm):
-    assert vm.ssh("cat /usr/share/coolbx/ansible/laptop-group").strip() == "leerlingen"
+def test_device_yaml_default_from_image(vm):
+    # ADR-0032: het toestelbestand komt bij eerste boot uit het image (rol-feature) via tmpfiles.
+    out = vm.ssh("cat /etc/coolbx/device.yaml")
+    assert "role:" in out and "channel:" in out, out
 
 
 def test_pull_config_present(vm):
@@ -33,8 +35,15 @@ def test_puller_noop_when_unconfigured(vm):
 
 def test_pull_is_strictly_runtime_scoped(vm):
     # STRAK GESCOPED (roadmap): de puller mag geen software/kernconfig aanraken — het script
-    # roept enkel ansible-pull aan met de groep-var, geen dnf/rpm/bootc.
+    # roept enkel ansible-pull aan met rol/profiel/kanaal/serienummer-vars, geen dnf/rpm/bootc.
     src = vm.ssh("cat /usr/libexec/coolbx-ansible-pull")
     code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
     for forbidden in ("dnf", "rpm ", "bootc", "rpm-ostree"):
         assert forbidden not in code, f"puller raakt {forbidden!r} aan (niet strak gescoped)"
+
+
+def test_puller_passes_device_identity(vm):
+    # De puller geeft rol/profiel/kanaal + serienummer/hostnaam door en kiest de branch op kanaal.
+    src = vm.ssh("cat /usr/libexec/coolbx-ansible-pull")
+    for needle in ("coolbx_role=", "coolbx_profile=", "coolbx_channel=", "coolbx_serial=", "vault-pass", "-C \"$BRANCH\""):
+        assert needle in src, needle

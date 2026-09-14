@@ -1,5 +1,5 @@
-# Coolbx OS GRUB2 theme — Focus-dark + mint accent
-# Background carries the "coolbx os" wordmark (baked PNG).
+# Coolbx OS GRUB2 theme — nacht + mint (ontwerp "papier & inkt", ADR-0035).
+# Vlakke achtergrond; de wordmark is een losse image-component (wordt niet mee-uitgerekt).
 
 desktop-image: "background.png"
 desktop-color: "#141210"
@@ -11,6 +11,12 @@ terminal-top: "0"
 terminal-width: "100%"
 terminal-height: "100%"
 terminal-border: "0"
+
++ image {
+    file = "logo.png"
+    left = 50%-171
+    top  = 14%
+}
 
 # --- boot menu ---
 + boot_menu {

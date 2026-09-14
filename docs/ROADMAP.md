@@ -30,7 +30,7 @@ Eerlijke framing blijft: het OS beveiligt **het toestel**, niet de ruimte. Fysie
 | Config-naad | image → `/etc/coolbx/device.yaml` → git config-repo met `profiles/` + platte `devices.yml` op serienummer; geen OU-boom | 0032 |
 | Browser | Google Chrome + Chrome Enterprise Core (gratis) als `chrome`-feature; Chromium blijft fallback | 0033 |
 | Powerwash | Alleen via beheerder-launcher of vlag op afstand; géén GRUB-ingang | 0034 |
-| Design | Eigen karakter binnen de coolbx-familie, vector-eerst, schaalt per resolutie; carte blanche | 0035 (volgt) |
+| Design | "Papier & inkt": licht bureaublad, nacht-kader, één glyph, één accent, vector-eerst | 0035 |
 | Installatie | Anaconda-ISO via bootc-image-builder, school-specifiek (repo-URL + geheimen), hoort in v1 | 0032 |
 
 ## 3. Architectuur

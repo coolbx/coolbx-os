@@ -1,14 +1,14 @@
-# Coolbx OS — GDM greeter branding
+# Coolbx OS — aanmeldscherm: nacht met één dot, wordmark onderaan (ADR-0035)
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
 accent-color='green'
 
 [org/gnome/desktop/background]
-picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-login.png'
-picture-uri-dark='file:///usr/share/backgrounds/coolbx/coolbx-login.png'
+picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-night.png'
+picture-uri-dark='file:///usr/share/backgrounds/coolbx/coolbx-night.png'
 picture-options='zoom'
 primary-color='#141210'
 
 [org/gnome/login-screen]
-logo='/usr/share/coolbx/branding/coolbx-wordmark-white.png'
+logo='/usr/share/coolbx/branding/coolbx-gdm-logo.png'
 banner-message-enable=false

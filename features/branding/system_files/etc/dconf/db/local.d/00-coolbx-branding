@@ -1,6 +1,7 @@
-# Coolbx OS — GNOME desktop defaults (Focus-dark + mint)
+# Coolbx OS — bureaublad-defaults (ontwerp "papier & inkt", ADR-0035): licht papier om op te
+# werken; het kader (opstart, aanmelden, kiosk) is nacht. Eén accent: mint.
 [org/gnome/desktop/interface]
-color-scheme='prefer-dark'
+color-scheme='default'
 accent-color='green'
 font-name='Inter 11'
 document-font-name='Inter 11'
@@ -8,14 +9,15 @@ monospace-font-name='Source Code Pro 10'
 clock-show-weekday=true
 
 [org/gnome/desktop/background]
-picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-dark.png'
-picture-uri-dark='file:///usr/share/backgrounds/coolbx/coolbx-dark.png'
+picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-paper.png'
+picture-uri-dark='file:///usr/share/backgrounds/coolbx/coolbx-paper.png'
 picture-options='zoom'
-primary-color='#141210'
-secondary-color='#141210'
+primary-color='#faf8f3'
+secondary-color='#faf8f3'
 
 [org/gnome/desktop/screensaver]
-picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-login.png'
+picture-uri='file:///usr/share/backgrounds/coolbx/coolbx-night.png'
+picture-options='zoom'
 primary-color='#141210'
 
 [org/gnome/desktop/wm/preferences]

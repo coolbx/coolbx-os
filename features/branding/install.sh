@@ -64,10 +64,12 @@ if command -v dracut >/dev/null 2>&1 && [ -n "${kver:-}" ] \
         --omit "nfs nbd cifs iscsi fcoe fcoe-uefi multipath nvmf" \
         "/usr/lib/modules/${kver}/initramfs.img" "${kver}"
     [ "$rh_tmp" = 1 ] && rmdir /var/roothome 2>/dev/null || true
-    lsinitrd "/usr/lib/modules/${kver}/initramfs.img" 2>/dev/null \
-        | grep -qi 'themes/coolbx' \
-        && echo "dracut: coolbx-thema zit in initramfs ✓" \
-        || { echo "::error::coolbx-thema NIET in initramfs (dracut faalde)"; exit 1; }
+    # Geen `lsinitrd | grep -q` (pipefail + vroege grep-exit → SIGPIPE → vals negatief).
+    if [ "$(lsinitrd "/usr/lib/modules/${kver}/initramfs.img" 2>/dev/null | grep -ci 'themes/coolbx')" -gt 0 ]; then
+        echo "dracut: coolbx-thema zit in initramfs ✓"
+    else
+        echo "::error::coolbx-thema NIET in initramfs (dracut faalde)"; exit 1
+    fi
 else
     echo "warn: dracut/initramfs niet gevonden (kver=${kver:-?})"
 fi

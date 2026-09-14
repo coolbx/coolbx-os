@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
-"""Genereer de Coolbx OS-brandingassets (Plymouth/GRUB/wallpaper) in de feature.
-Reproduceerbaar: draai vanuit de repo-root om de PNG's te herbouwen."""
+"""Genereer de Coolbx OS-brandingassets (ontwerp 'papier & inkt', ADR-0035).
+Vector-eerst: glyph/wallpapers zijn SVG (assets-src.py), PNG's worden gerenderd met inkscape;
+de wordmark wordt met Inter gezet (PIL). Reproduceerbaar: draai vanuit de repo-root.
+  python3 features/branding/gen-assets.py
+"""
+import base64
 import os
+import subprocess
+import sys
+
 from PIL import Image, ImageDraw, ImageFont
 
+sys.path.insert(0, os.path.dirname(__file__))
+import assets_src as src  # noqa: E402
+
 SF = os.path.join(os.path.dirname(__file__), "system_files")
+KIOSK_SF = os.path.join(os.path.dirname(__file__), "..", "kiosk", "system_files")
+FOCUS_SF = os.path.join(os.path.dirname(__file__), "..", "focus", "system_files")
 FD = "/usr/share/fonts/rsms-inter-fonts/"
-MINT = (80, 206, 150); PAPER = (250, 248, 243); BG = (20, 18, 16); SUB = (150, 142, 130)
+MINT = (80, 206, 150); PAPER = (250, 248, 243); BG = (20, 18, 16); INK = (43, 38, 32)
 
 
 def f(n, s):
@@ -16,6 +28,16 @@ def f(n, s):
 def ensure(p):
     os.makedirs(os.path.dirname(p), exist_ok=True)
     return p
+
+
+def svg_to_png(svg, out, w=None, h=None):
+    tmp = out + ".svg"
+    open(ensure(tmp), "w").write(svg)
+    cmd = ["inkscape", tmp, "--export-type=png", f"--export-filename={out}"]
+    if w: cmd.append(f"--export-width={w}")
+    if h: cmd.append(f"--export-height={h}")
+    subprocess.run(cmd, check=True, capture_output=True)
+    os.remove(tmp)
 
 
 def wordmark(size, accent=MINT, cool=PAPER):
@@ -30,53 +52,6 @@ def wordmark(size, accent=MINT, cool=PAPER):
     return img.crop(img.getbbox())
 
 
-# Plymouth: logo + pulserende dot
-logo = wordmark(120)
-logo.save(ensure(f"{SF}/usr/share/plymouth/themes/coolbx/logo.png"))
-dot = Image.new("RGBA", (28, 28), (0, 0, 0, 0))
-ImageDraw.Draw(dot).ellipse([0, 0, 27, 27], fill=MINT)
-dot.save(ensure(f"{SF}/usr/share/plymouth/themes/coolbx/dot.png"))
-
-# GRUB-achtergrond 1920x1080: vlak #141210 + enkel de wordmark bovenaan
-gb = Image.new("RGB", (1920, 1080), BG)
-wm = wordmark(76)
-gb.paste(wm, (1920 // 2 - wm.width // 2, 150), wm)
-gb.save(ensure(f"{SF}/usr/share/grub/themes/coolbx/background.png"))
-# Geen spinner/terminal-box meer: het zwarte laad-vlak is opgelost door in theme.txt
-# géén terminal-box te definiëren (transparante terminal, Pop!_OS-aanpak).
-
-# GNOME "Over"-logo (os-release LOGO=coolbx-logo): in LICHTE modus toont GNOME dit
-# op een paper-achtergrond → "coolbx" in INK (anders onzichtbaar). Vierkant canvas
-# voor de icon-theme-lookup; GNOME schaalt op hoogte.
-about = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-awm = wordmark(48, cool=BG)            # ink "coolbx" + mint "os"
-awm.thumbnail((224, 224))
-about.paste(awm, (128 - awm.width // 2, 128 - awm.height // 2), awm)
-about.save(ensure(f"{SF}/usr/share/icons/hicolor/256x256/apps/coolbx-logo.png"))
-
-# Witte wordmark (paper "coolbx" + mint "os") voor DONKERE achtergronden:
-# GDM-greeter + de donkere-modus 'Over'-pagina (vervangt het Fedora-asset).
-white_wm = wordmark(120, cool=PAPER)   # PNG, brede wordmark
-white_wm.save(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-white.png"))
-# vierkant-canvas variant (256²) voor icon-theme-namen die de shell/greeter vragen
-sq = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-w2 = white_wm.copy(); w2.thumbnail((224, 224))
-sq.paste(w2, (128 - w2.width // 2, 128 - w2.height // 2), w2)
-sq.save(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-logo-white.png"))
-# GNOME 'Over' zoekt in DONKERE modus naar de icoon-variant <LOGO>-dark
-# (= coolbx-logo-dark). os-release LOGO_DARK is géén standaard → dit is de juiste weg.
-sq.save(ensure(f"{SF}/usr/share/icons/hicolor/256x256/apps/coolbx-logo-dark.png"))
-# SVG met ingebedde PNG (om Fedora's SVG-logo-assets te vervangen, formaat-veilig)
-import base64
-b64 = base64.b64encode(open(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-white.png", "rb").read()).decode()
-svg = ('<?xml version="1.0" encoding="UTF-8"?>\n'
-       f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
-       f'width="{white_wm.width}" height="{white_wm.height}" viewBox="0 0 {white_wm.width} {white_wm.height}">\n'
-       f'  <image width="{white_wm.width}" height="{white_wm.height}" xlink:href="data:image/png;base64,{b64}"/>\n'
-       '</svg>\n')
-open(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-white.svg"), "w").write(svg)
-
-
 def embed_svg(png_path, w, h):
     b = base64.b64encode(open(png_path, "rb").read()).decode()
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -85,29 +60,56 @@ def embed_svg(png_path, w, h):
             f'  <image width="{w}" height="{h}" xlink:href="data:image/png;base64,{b}"/>\n</svg>\n')
 
 
-# Ink wordmark (paper-achtergrond / LICHTE modus) — PNG + SVG, om Fedora's
-# "lightbackground"-logo te vervangen (de blauwe/donkere variant).
-ink_wm = wordmark(120, cool=BG)
+# ── Plymouth: GROTE wordmark-bron (het script schaalt naar 13 % van de schermbreedte) + dot ──
+wordmark(300).save(ensure(f"{SF}/usr/share/plymouth/themes/coolbx/logo.png"))
+dot = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+ImageDraw.Draw(dot).ellipse([0, 0, 63, 63], fill=MINT)
+dot.save(ensure(f"{SF}/usr/share/plymouth/themes/coolbx/dot.png"))
+
+# ── GRUB: vlakke nacht-achtergrond + losse wordmark als image-component (theme.txt) ──
+Image.new("RGB", (1920, 1080), BG).save(ensure(f"{SF}/usr/share/grub/themes/coolbx/background.png"))
+wordmark(76).save(ensure(f"{SF}/usr/share/grub/themes/coolbx/logo.png"))
+
+# ── Wordmarks (wit voor donker, inkt voor licht) — GNOME 'Over', GDM-logo, Fedora-asset-vervanging ──
+white_wm = wordmark(120, cool=PAPER)
+white_wm.save(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-white.png"))
+open(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-white.svg"), "w").write(
+    embed_svg(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-white.png", white_wm.width, white_wm.height))
+ink_wm = wordmark(120, cool=INK)
 ink_png = f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-ink.png"
 ink_wm.save(ensure(ink_png))
-open(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-ink.svg"), "w").write(
-    embed_svg(ink_png, ink_wm.width, ink_wm.height))
+open(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-wordmark-ink.svg"), "w").write(embed_svg(ink_png, ink_wm.width, ink_wm.height))
+# GDM-logo (onderaan het aanmeldscherm): bescheiden, 2×-scherp.
+wordmark(56, cool=PAPER).save(ensure(f"{SF}/usr/share/coolbx/branding/coolbx-gdm-logo.png"))
 
-# Wallpaper (optie C): vlak #141210 + subtiele wordmark net onder het midden.
-# 4K-bron zodat GNOME's zoom naar elke resolutie schaalt; gecentreerd-horizontaal
-# + binnen de centrale veilige zone zodat geen enkel crop hem wegsnijdt.
-WPW, WPH = 3840, 2160
-wp = Image.new("RGB", (WPW, WPH), BG)
-mark = wordmark(220)
-a = mark.split()[3].point(lambda p: int(p * 0.12))
-mark.putalpha(a)
-wp.paste(mark, (WPW // 2 - mark.width // 2, int(WPH * 0.72) - mark.height // 2), mark)
-wp.save(ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-dark.png"))
+# ── Glyph: het vel met de dot (tegel voor icoon-lookups; kale glyph voor balken) ──
+for name, kw in {
+    "coolbx-logo":       dict(tile=src.PAPER, sheet=src.INK, dot=src.MINT, tile_stroke="#d9d2c6"),   # lichte modus ('Over')
+    "coolbx-logo-dark":  dict(tile=src.INK, sheet=src.PAPER, dot=src.MINT),                          # donkere modus
+    "coolbx-logo-white": dict(tile=src.INK, sheet=src.PAPER, dot=src.MINT),
+}.items():
+    svg = src.glyph_svg(512, **kw)
+    open(ensure(f"{SF}/usr/share/coolbx/branding/{name}.svg"), "w").write(svg)
+    svg_to_png(svg, ensure(f"{SF}/usr/share/icons/hicolor/256x256/apps/{name}.png"), 256, 256)
+    svg_to_png(svg, ensure(f"{SF}/usr/share/icons/hicolor/512x512/apps/{name}.png"), 512, 512)
+    svg_to_png(svg, ensure(f"{SF}/usr/share/coolbx/branding/{name}.png"), 256, 256)
+# kiosk-app-icoon (mint) in de kiosk-feature; Toetsmodus (amber) in de focus-feature
+for sf, name, dotc in ((KIOSK_SF, "coolbx-kiosk", src.MINT), (FOCUS_SF, "coolbx-focus", src.AMBER)):
+    svg = src.glyph_svg(512, tile=src.INK, sheet=src.PAPER, dot=dotc)
+    open(ensure(f"{sf}/usr/share/icons/hicolor/scalable/apps/{name}.svg"), "w").write(svg)
+    svg_to_png(svg, ensure(f"{sf}/usr/share/icons/hicolor/256x256/apps/{name}.png"), 256, 256)
+    svg_to_png(svg, ensure(f"{sf}/usr/share/icons/hicolor/512x512/apps/{name}.png"), 512, 512)
 
-# GDM/login-achtergrond (zelfde vlak, met subtiele wordmark onderaan)
-gdm = Image.new("RGB", (1920, 1080), BG)
-wm2 = wordmark(48)
-gdm.paste(wm2, (1920 // 2 - wm2.width // 2, 1080 - 140), wm2)
-gdm.save(ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-login.png"))
-
+# ── Wallpapers: papier (bureaublad) en nacht (aanmelden/vergrendelen), SVG-bron + 4K-PNG ──
+paper = src.paper_wallpaper_svg()
+open(ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-paper.svg"), "w").write(paper)
+svg_to_png(paper, ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-paper.png"))
+night = src.night_wallpaper_svg()
+open(ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-night.svg"), "w").write(night)
+svg_to_png(night, ensure(f"{SF}/usr/share/backgrounds/coolbx/coolbx-night.png"))
+# oude namen weg
+for old in ("coolbx-dark.png", "coolbx-login.png"):
+    p = f"{SF}/usr/share/backgrounds/coolbx/{old}"
+    if os.path.exists(p): os.remove(p)
+old_icon = f"{KIOSK_SF}/usr/share/icons/hicolor/256x256/apps/coolbx-kiosk.png"
 print("branding-assets gegenereerd in", SF)

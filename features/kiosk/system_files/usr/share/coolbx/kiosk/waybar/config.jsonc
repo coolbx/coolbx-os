@@ -15,7 +15,7 @@
   "custom/app": {
     "exec": "cat /run/coolbx-kiosk/name 2>/dev/null || echo kiosk",
     "interval": "once",
-    "format": "  {}",
+    "format": "|  {}",
     "tooltip": false
   },
   "clock": {

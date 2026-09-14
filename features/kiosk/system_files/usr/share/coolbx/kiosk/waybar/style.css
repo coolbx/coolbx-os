@@ -1,43 +1,53 @@
-/* Coolbx kiosk-balk — pixel/font-gelijk aan de GNOME-topbalk (#panel):
-   bg #050000, Cantarell bold, wit. Alleen brand-accent + exit zijn coolbx. */
+/* Coolbx kiosk-balk — ontwerp "papier & inkt" (ADR-0035): nacht-balk, papier-tekst,
+   de app-naam in mint, "Sessie afsluiten" als omlijnde pil. Inter (branding), anders DejaVu. */
 * {
-  font-family: "Cantarell", "DejaVu Sans", sans-serif;
-  font-size: 15px;
-  font-weight: bold;
+  font-family: "Inter", "Cantarell", "DejaVu Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
   border: none;
   border-radius: 0;
   min-height: 0;
 }
 
 window#waybar {
-  background: #050000;       /* = GNOME #panel */
-  color: #ffffff;
+  background: #141210;
+  color: #faf8f3;
+  border-bottom: 1px solid #2b2620;
 }
 
 #custom-brand {
-  padding: 0 16px;
-  color: #ffffff;
+  padding: 0 12px 0 18px;
+  color: #faf8f3;
+  font-weight: 900;
+}
+
+#custom-app {
+  padding: 0 14px 0 0;
+  color: #50ce96;
+  font-weight: 600;
 }
 
 #clock {
-  color: #ffffff;
+  color: #faf8f3;
 }
 
 #network,
 #battery {
   padding: 0 10px;
-  color: #ffffff;
+  color: #a89f92;
 }
 
 #custom-exit {
-  margin: 3px 12px 3px 8px;
-  padding: 0 16px;
-  border-radius: 999px;      /* = GNOME panel-button pill */
-  background: rgba(255, 255, 255, 0.10);
-  color: #ffffff;
+  margin: 5px 14px 5px 8px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #6b6256;
+  background: transparent;
+  color: #faf8f3;
 }
 
 #custom-exit:hover {
-  background: #e8902a;       /* amber accent bij hover */
-  color: #050000;
+  background: #50ce96;
+  border-color: #50ce96;
+  color: #141210;
 }
