@@ -15,10 +15,10 @@ oude op status "Vervangen door ADR-XXXX").
 | [0005](0005-toestelmodel-beheerd-vergrendelt.md) | Beheerde laptop die op aanvraag vergrendelt | Aanvaard |
 | [0006](0006-kiosk-sway-waybar.md) | sway + waybar als kiosk-compositor | Aanvaard |
 | [0007](0007-integriteit-op-focus-laag.md) | Examenintegriteit op de Focus-server-laag | Aanvaard |
-| [0008](0008-account-pilot-autologin-gast.md) | Pilot-accountmodel: gedeeld + autologin-gast | Voorgesteld |
+| [0008](0008-account-pilot-autologin-gast.md) | Pilot-accountmodel: gedeeld + autologin-gast | Vervangen door ADR-0031 |
 | [0009](0009-security-scope-pilot-eerlijk.md) | Security-scope v1: pilot-eerlijk, hardening fast-follow | Aanvaard |
 | [0010](0010-branding-play-focus.md) | Branding: play↔focus-dualiteit, geen schild | Aanvaard |
-| [0011](0011-chromium-rpm-policy-in-image.md) | RPM-Chromium + policy in het image (geen Flatpak/ansible) | Aanvaard |
+| [0011](0011-chromium-rpm-policy-in-image.md) | RPM-Chromium + policy in het image (geen Flatpak/ansible) | Aanvaard (verfijnd door ADR-0033) |
 | [0012](0012-standalone-os-focus-optioneel.md) | Coolbx OS standalone; Focus-integratie = optionele feature-laag | Aanvaard |
 | [0013](0013-anti-spoofing-hmac-per-device.md) | Anti-spoofing via HMAC-handshake + per-toestel-secret | Aanvaard (richting) |
 | [0014](0014-verificatie-en-autonomie.md) | Verificatie- & autonomie-aanpak tijdens de bouw | Aanvaard |
@@ -35,3 +35,10 @@ oude op status "Vervangen door ADR-XXXX").
 | [0025](0025-nvidia-nouveau-geen-proprietaire-driver.md) | nvidia: nouveau + firmware, géén proprietaire driver (ADR-0019) | Aanvaard (richting) |
 | [0026](0026-surface-camera-niet-ondersteund.md) | Surface-camera (IPU3) niet ondersteund — vereist linux-surface-kernel (ADR-0019) | Aanvaard (richting) |
 | [0027](0027-media-nonfree-optionele-feature.md) | Nonfree media (codecs + VAAPI + Widevine) als optionele feature | Aanvaard (richting) |
+| [0028](0028-heropname-standalone-chromebook-richting.md) | Heropname sep 2026 — standalone Chromebook-achtig OS, voorlopig los van Focus | Aanvaard |
+| [0029](0029-generieke-kiosk-apps-focus-feature.md) | Generieke kiosk-apps uit config; Focus als kiosk-app in aparte feature | Aanvaard |
+| [0030](0030-drie-rol-images.md) | Drie rol-images: leerling, leerkracht, gedeeld | Aanvaard |
+| [0031](0031-accountmodel-google-ldap-sssd.md) | Accountmodel: Google Secure LDAP via SSSD, gedeelde lokale gebruiker, beheerder `coolbx` | Aanvaard (vervangt 0008) |
+| [0032](0032-config-naad-device-yaml-profielen-serienummer.md) | Config-naad: device.yaml, git-profielen, platte serienummerlijst | Aanvaard |
+| [0033](0033-google-chrome-enterprise-core.md) | Google Chrome + Chrome Enterprise Core als `chrome`-feature | Aanvaard |
+| [0034](0034-powerwash-zonder-grub.md) | Powerwash zonder GRUB-ingang; fysieke beveiliging uitgesteld | Aanvaard |

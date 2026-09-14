@@ -4,11 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Notitie: de gebruiker werkt in het Nederlands — antwoord en schrijf in het Nederlands.
 
-## Status
+## Status (heropname 14 sep 2026)
 
-Er is nog geen code/build-systeem/tests, **maar de richting en architectuur liggen nu vast** in **`docs/ROADMAP.md`** — dat is de gezaghebbende, levende projectbron. **Lees `docs/ROADMAP.md` eerst** (+ de ADRs in `docs/adr/` voor het *waarom* van elke beslissing); de harde feiten van het integratiecontract staan verderop in dit bestand. De vroeger-open beslissingen zijn beslist: beheerde **fedora-bootc** + GNOME-laptop die op aanvraag in een vergrendelde **sway**-kiosk (+waybar) schakelt met RPM-Chromium + de force-installed Focus-extensie; examenintegriteit ligt op de Focus-server (niet een onbreekbare OS-jail); branding = **play↔focus**-dualiteit (géén schild); uitrol via interactieve ISO/FOG; updates via greenboot/bootc + powerwash.
+**Lees eerst `docs/ROADMAP.md` (v3)** en de ADRs `docs/adr/0028`–`0034` — dat is de gezaghebbende richting.
+Kern: Coolbx OS is een **standalone, Chromebook-achtig schoolbesturingssysteem** (fedora-bootc + GNOME),
+voorlopig **los van Coolbx Focus** (Focus = optionele `focus`-feature). Drie rol-images (`leerling`,
+`leerkracht`, `gedeeld`), Google-login via Secure LDAP/SSSD, Google Chrome + Chrome Enterprise Core,
+generieke sway-kiosk met apps uit config, config via git (`coolbx-ansible`: profielen + serienummerlijst),
+verborgen beheerder `coolbx`, powerwash zonder GRUB-ingang. Design: eigen karakter, vector-eerst.
 
-Dev-omgeving: passwordless `sudo podman` is ingesteld (`/etc/sudoers.d/coolbx-os-dev`) voor bootc-image-builder, zodat de build→VM-loop autonoom draait (qemu-direct + QEMU-monitor `screendump` voor screenshots).
+Wat uit de juni-bouw (v2) blijft: bootc-kern, kiosk-mechaniek (sway+waybar, VT-lock), vlootlaag (staged
+update, greenboot, signing, ansible-pull, coolbx-status), attestatie (nu in `focus`), e2e-harnas (`just e2e`).
+Dev-omgeving: passwordless `sudo podman`; qemu-direct VM-loop (`docs/DEVELOPING.md`). Google-sandbox: `docs/WORKSPACE.md`
+(geheimen in `~/.config/coolbx/secrets/`, nooit in git).
 
 ## Wat dit is
 

@@ -1,6 +1,6 @@
 # ADR-0008: Pilot-accountmodel — gedeeld toestel + autologin-gast
 
-- **Status:** Voorgesteld (breed model beslist na pilot)
+- **Status:** Vervangen door [ADR-0031](0031-accountmodel-google-ldap-sssd.md) (14 sep 2026)
 - **Datum:** 2026-06-23
 - **Beslissers:** Johan, Claude
 
