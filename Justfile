@@ -133,7 +133,7 @@ iso-test rol="gedeeld":
       [ "$i" = 150 ] && { echo "timeout — zie output/iso-serial.log"; tail -20 output/iso-serial.log; exit 1; }
     done
     fail=0; chk(){ if sshc "echo '$PW' | sudo -S sh -c '$2'" >/dev/null 2>&1; then echo "OK   $1"; else echo "FAIL $1"; fail=1; fi; }
-    chk "device.yaml rol={{ rol }}"      "grep -q '^role: {{ rol }}' /etc/coolbx/device.yaml"
+    chk "device.yaml rol={{ rol }}"      "grep -q ^role:.{{ rol }} /etc/coolbx/device.yaml"
     chk "ansible.conf zonder PLACEHOLDER" "grep -q ANSIBLE_PULL_URL /etc/coolbx/ansible.conf && ! grep -q PLACEHOLDER /etc/coolbx/ansible.conf"
     chk "vault-pass root-only"          "test -s /etc/coolbx/vault-pass && test \"\$(stat -c %a /etc/coolbx/vault-pass)\" = 600"
     chk "beheerder coolbx in wheel"     "id -nG coolbx | grep -qw wheel"
