@@ -72,11 +72,14 @@ build-iso rol:
     ADMIN_HASH="$( [ -s "${ADMIN_HASH_FILE:-/nonexistent}" ] && cat "${ADMIN_HASH_FILE}" || true )"
     just build-role "{{ rol }}"
     mkdir -p output
+    [ "${ISO_UNATTENDED:-0}" = "1" ] && echo "!! ONBEHEERDE ISO: wist bij het booten de eerste schijf ZONDER vraag (enkel voor de VM-test)" || true
     python3 - "{{ rol }}" > output/iso-{{ rol }}.toml <<'PY'
     import os, sys
     rol = sys.argv[1]
     t = open("disk_config/iso.toml.in").read()
-    rep = {"@ROLE@": rol, "@PROFILE@": os.environ.get("PROFILE", ""), "@CHANNEL@": os.environ.get("CHANNEL", "stabiel"),
+    # ISO_UNATTENDED=1 (alleen voor de VM-test!): wist de eerste schijf zonder vraag en installeert meteen.
+    unatt = "# onbeheerd (ISO_UNATTENDED=1)\nzerombr\nclearpart --all --initlabel\nautopart --type=btrfs\n" if os.environ.get("ISO_UNATTENDED") == "1" else ""
+    rep = {"@UNATTENDED@": unatt, "@ROLE@": rol, "@PROFILE@": os.environ.get("PROFILE", ""), "@CHANNEL@": os.environ.get("CHANNEL", "stabiel"),
            "@CONFIG_REPO_URL@": os.environ["CONFIG_REPO_URL"], "@VAULT_PASS@": os.environ["VAULT_PASS"],
            "@ADMIN_HASH@": os.environ.get("ADMIN_HASH", ""), "@IMAGE_REF@": os.environ["IMAGE_REGISTRY"] + ":" + rol}
     for k, v in rep.items():
@@ -97,6 +100,42 @@ build-iso rol:
       "{{ base_image }}" chown -R "$(id -u):$(id -g)" /output
     rm -f output/iso-{{ rol }}.toml
     echo ">> klaar: output/bootiso/install.iso (rol {{ rol }})"
+
+# VM-test van de installatie-ISO (Fase E): lege schijf, boot van output/bootiso/install.iso (onbeheerd,
+# ISO_UNATTENDED=1 bij build-iso), wacht op de herstart, en controleer via SSH (coolbx, poort 2223)
+# dat het toestel ingeschreven is (device.yaml, ansible.conf, vault-pass, beheerderswachtwoord, bootc-origin).
+iso-test rol="gedeeld":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ISO=output/bootiso/install.iso; test -f "$ISO" || { echo "geen $ISO — eerst ISO_UNATTENDED=1 just build-iso {{ rol }}"; exit 1; }
+    PW="$(cat "$HOME/.config/coolbx/secrets/admin-password.txt")"
+    OVMF_CODE=$(ls /usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/OVMF/OVMF_CODE.fd 2>/dev/null | head -1)
+    cp -f "$(ls /usr/share/edk2/ovmf/OVMF_VARS.fd /usr/share/OVMF/OVMF_VARS.fd 2>/dev/null | head -1)" output/iso-ovmf_vars.fd
+    rm -f output/iso-test.qcow2 output/iso-serial.log /tmp/coolbx-iso.pid; qemu-img create -f qcow2 output/iso-test.qcow2 24G >/dev/null
+    qemu-system-x86_64 -enable-kvm -machine q35 -cpu host -m 4096 -smp 4 \
+      -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" -drive if=pflash,format=raw,file=output/iso-ovmf_vars.fd \
+      -drive file=output/iso-test.qcow2,if=virtio,format=qcow2 -cdrom "$ISO" -boot once=d \
+      -device virtio-vga -display none -netdev user,id=n0,hostfwd=tcp:127.0.0.1:2223-:22 -device virtio-net-pci,netdev=n0 \
+      -serial file:output/iso-serial.log -monitor unix:/tmp/coolbx-iso-mon.sock,server,nowait -daemonize -pidfile /tmp/coolbx-iso.pid
+    echo ">> installer gestart (pid $(cat /tmp/coolbx-iso.pid)); wachten op installatie + herstart (max 25 min)"
+    sshc(){ sshpass -p "$PW" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -p 2223 coolbx@127.0.0.1 "$@"; }
+    for i in $(seq 1 150); do
+      sleep 10
+      if sshc true 2>/dev/null; then echo ">> geïnstalleerd systeem bereikbaar na ~$((i*10))s"; break; fi
+      [ "$i" = 150 ] && { echo "timeout — zie output/iso-serial.log"; tail -20 output/iso-serial.log; exit 1; }
+    done
+    fail=0; chk(){ if sshc "echo '$PW' | sudo -S sh -c '$2'" >/dev/null 2>&1; then echo "OK   $1"; else echo "FAIL $1"; fail=1; fi; }
+    chk "device.yaml rol={{ rol }}"      "grep -q '^role: {{ rol }}' /etc/coolbx/device.yaml"
+    chk "ansible.conf zonder PLACEHOLDER" "grep -q ANSIBLE_PULL_URL /etc/coolbx/ansible.conf && ! grep -q PLACEHOLDER /etc/coolbx/ansible.conf"
+    chk "vault-pass root-only"          "test -s /etc/coolbx/vault-pass && test \"\$(stat -c %a /etc/coolbx/vault-pass)\" = 600"
+    chk "beheerder coolbx in wheel"     "id -nG coolbx | grep -qw wheel"
+    chk "bootc-origin = GHCR-rol-tag"   "bootc status | grep -q 'ghcr.io/coolbx/coolbx-os:{{ rol }}'"
+    chk "Chrome aanwezig"               "test -x /opt/google/chrome/chrome"
+    chk "gdm actief"                    "systemctl is-active --quiet gdm"
+    chk "geen dev-testuser"             "! getent passwd tester"
+    chk "installatielog"                "test -f /var/log/coolbx-install.log"
+    kill "$(cat /tmp/coolbx-iso.pid)" 2>/dev/null || true
+    [ "$fail" = 0 ] && echo ">> ISO-test GROEN" || { echo ">> ISO-test ROOD"; exit 1; }
 
 # Bouw een bootable qcow2 via bootc-image-builder.
 # Rootless build (heeft netwerk) → image via save|load naar root-storage (rootful build

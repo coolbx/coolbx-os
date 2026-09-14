@@ -23,6 +23,7 @@ lang nl_BE.UTF-8
 keyboard --vckeymap=be --xlayouts='be'
 timezone Europe/Brussels --utc
 reboot
+@UNATTENDED@
 
 %post --log=/var/log/coolbx-install.log
 set -e

@@ -24,8 +24,9 @@ LABEL org.opencontainers.image.title="Coolbx OS" \
       org.opencontainers.image.revision="${SHA_HEAD_SHORT}" \
       containers.bootc="1"
 
-# 1) Zware, cachebare pakket-laag
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+# 1) Zware, cachebare pakket-laag. Mount ALLEEN build_files (niet features/): een gewijzigde feature
+#    invalideert anders deze dure laag (buildah cachet op de inhoud van de bind-mount-bron).
+RUN --mount=type=bind,from=ctx,source=/build_files,target=/ctx/build_files \
     --mount=type=cache,dst=/var/cache \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build_files/01-packages.sh
@@ -34,13 +35,13 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 COPY system_files /
 
 # 3) Lichte config (units enablen, locale, first-boot dev-user)
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+RUN --mount=type=bind,from=ctx,source=/build_files,target=/ctx/build_files \
     --mount=type=cache,dst=/var/cache \
     --mount=type=tmpfs,dst=/tmp \
     ENABLE_FIRSTBOOT_USER=${ENABLE_FIRSTBOOT_USER} /ctx/build_files/02-config.sh
 
 # 4) GNOME-defaults (dconf/schemas)
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+RUN --mount=type=bind,from=ctx,source=/build_files,target=/ctx/build_files \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build_files/03-gnome-dconf.sh
 
