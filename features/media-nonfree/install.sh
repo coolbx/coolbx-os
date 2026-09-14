@@ -36,11 +36,23 @@ echo "::group:: media-nonfree: Widevine CDM (DRM) — extractie uit Google Chrom
 # distribueert 'm zelf) en verwijderen Chrome weer. NB: dit herdistribueert Google's CDM op interne
 # schooltoestellen — gangbaar, laag risico voor intern/educatief, maar bewust (ADR-0027). Widevine = L3
 # (software) op Linux → SD-DRM (Netflix/Spotify SD + meeste leerplatforms), geen HD-DRM.
-dnf5 -y install "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
-install -d /usr/lib64/chromium-browser/WidevineCdm
-cp -a /opt/google/chrome/WidevineCdm/. /usr/lib64/chromium-browser/WidevineCdm/
-dnf5 -y remove google-chrome-stable
-rm -rf /opt/google /etc/yum.repos.d/google-chrome.repo /etc/cron.daily/google-chrome /etc/default/google-chrome 2>/dev/null || true
+# Zit Google Chrome al in het image (chrome-feature, ADR-0033)? Dan NOOIT verwijderen — Chrome brengt
+# z'n eigen Widevine mee; enkel voor een eventueel aanwezige Fedora-Chromium kopiëren we de CDM.
+if rpm -q google-chrome-stable >/dev/null 2>&1; then
+  echo "google-chrome-stable aanwezig (chrome-feature) — Widevine-CDM delen met Chromium, Chrome blijft"
+  if command -v chromium-browser >/dev/null 2>&1; then
+    install -d /usr/lib64/chromium-browser/WidevineCdm
+    cp -a /opt/google/chrome/WidevineCdm/. /usr/lib64/chromium-browser/WidevineCdm/
+  fi
+elif command -v chromium-browser >/dev/null 2>&1; then
+  dnf5 -y install "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
+  install -d /usr/lib64/chromium-browser/WidevineCdm
+  cp -a /opt/google/chrome/WidevineCdm/. /usr/lib64/chromium-browser/WidevineCdm/
+  dnf5 -y remove google-chrome-stable
+  rm -rf /opt/google /etc/yum.repos.d/google-chrome.repo /etc/cron.daily/google-chrome /etc/default/google-chrome 2>/dev/null || true
+else
+  echo "geen browser in het image — Widevine-stap overgeslagen"
+fi
 echo "::endgroup::"
 
 echo "::group:: media-nonfree: Chromium hardware-decode aanzetten"
@@ -53,6 +65,6 @@ echo "::endgroup::"
 
 # Opschoning (bootc-lint: niets achterlaten in /var).
 dnf5 clean all
-rm -rf /var/cache/* /var/lib/dnf/history* /var/log/dnf* /var/opt 2>/dev/null || true
+rm -rf /var/cache/* /var/lib/dnf/history* /var/log/dnf* 2>/dev/null || true
 
 echo "media-nonfree feature installed"

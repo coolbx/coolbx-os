@@ -88,7 +88,7 @@ Roadmap v3 + ADR-0028…0034. Memory bijgewerkt.
 
 ### Fase B — Kiosk generiek, Focus apart
 - `kiosk`: apps uit YAML (`id`, `name`, `icon`, `url`, `allow_domains`, `policy`), launcher-generator
-  (`coolbx-kiosk-apps apply` → `.desktop` per app in `/usr/local/share/applications`), per-app Chromium-policy
+  (`coolbx-kiosk-apps apply` → `.desktop` per app in `/var/lib/coolbx/share/applications`, via XDG_DATA_DIRS), per-app Chromium-policy
   tijdens de sessie (`coolbx-kiosk-app.json`), browser-agnostisch (chrome of chromium), waybar toont app-naam.
 - `focus` = huidige `attest` + Focus-delen van `kiosk` (managed.json, domains, lobby-policy) + kiosk-app `focus`.
 - greenboot/status/tests feature-bewust. e2e: Focus-tests skippen zonder `focus`.

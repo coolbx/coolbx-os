@@ -65,7 +65,7 @@ def test_status_json_written(pulled):
 def test_kiosk_apps_from_profile(pulled):
     lst = pulled.ssh("coolbx-kiosk-apps list")
     assert "smartschool\tSmartschool" in lst and "bingel\tBingel" in lst, lst
-    assert pulled.ssh_ok("test -f /usr/local/share/applications/coolbx-kiosk-smartschool.desktop")
+    assert pulled.ssh_ok("test -f /var/lib/coolbx/share/applications/coolbx-kiosk-smartschool.desktop")
     pol = pulled.ssh("coolbx-kiosk-apps policy smartschool")
     assert '"URLBlocklist"' in pol and "smartschool.be" in pol
 
