@@ -32,6 +32,16 @@ fi
 ln -sfn /etc/chromium/policies/managed /etc/opt/chrome/policies/managed
 echo "::endgroup::"
 
+echo "::group:: chrome: geen GNOME-keyring (wachtwoordopslag 'basic')"
+# Het Google-wachtwoord wijzigt buiten het toestel (OTP → nieuw wachtwoord op het web). De GNOME-login-keyring
+# blijft dan op het oude wachtwoord staan en Chrome vraagt bij elke start "unlock keyring". Chrome heeft de
+# keyring niet nodig (wachtwoordbeheer staat uit via beleid; cookies-sleutel gaat in een bestand) →
+# --password-store=basic in de launcher. Hetzelfde geldt voor de first-run-helper.
+sed -i 's|^Exec=/usr/bin/google-chrome-stable|Exec=/usr/bin/google-chrome-stable --password-store=basic|' \
+  /usr/share/applications/google-chrome.desktop
+grep -c -- '--password-store=basic' /usr/share/applications/google-chrome.desktop
+echo "::endgroup::"
+
 echo "::group:: chrome: standaardbrowser"
 install -d /etc/xdg
 cat > /etc/xdg/mimeapps.list <<'MIME'
