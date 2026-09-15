@@ -28,9 +28,16 @@ exec 9>/run/lock/coolbx-kiosk-start.lock
 if ! flock -n 9; then
   echo "coolbx-kiosk-start: er wordt al een kiosk gestart" >&2; exit 0
 fi
-if systemctl is-active --quiet coolbx-kiosk || [ "$(systemctl show -p ActiveState --value coolbx-kiosk 2>/dev/null)" = "activating" ]; then
-  echo "coolbx-kiosk-start: er draait al een kiosk-sessie (eerst 'Sessie afsluiten')" >&2; exit 0
-fi
+state="$(systemctl show -p ActiveState --value coolbx-kiosk 2>/dev/null || echo inactive)"
+case "$state" in
+  active|activating|reloading)
+    echo "coolbx-kiosk-start: er draait al een kiosk-sessie (eerst 'Sessie afsluiten')" >&2; exit 0 ;;
+  deactivating)
+    # vorige sessie is nog aan het stoppen: even wachten, dan verder
+    for _ in $(seq 1 20); do sleep 0.5; systemctl is-active --quiet coolbx-kiosk 2>/dev/null || break; done ;;
+esac
+# Een gefaalde/ingeladen restant blokkeert systemd-run ("already loaded") → opruimen.
+systemctl reset-failed coolbx-kiosk 2>/dev/null || true
 # Resten van een vorige (abrupt gestopte) sessie opruimen; ook gestapelde mounts.
 n=0; while mountpoint -q "$KIOSK_HOME" && [ "$n" -lt 20 ]; do umount -l "$KIOSK_HOME" 2>/dev/null || break; n=$((n+1)); done
 
