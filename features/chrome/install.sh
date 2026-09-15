@@ -43,4 +43,5 @@ x-scheme-handler/https=google-chrome.desktop
 MIME
 echo "::endgroup::"
 
+chmod 0755 /usr/libexec/coolbx-chrome-first-run
 echo "chrome feature installed"

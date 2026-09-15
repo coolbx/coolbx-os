@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Opent Chrome bij de EERSTE aanmelding van een gebruiker (autostart), zodat de Google-aanmelding
+# (BrowserSignin 2) en een eventuele verplichte OTP-wachtwoordwijziging meteen volgen. Daarna nooit meer.
+set -u
+[ -d "${HOME:-/nonexistent}/.config/google-chrome" ] && exit 0
+exec /usr/bin/google-chrome-stable
