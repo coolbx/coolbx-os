@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Chrome bij eerste aanmelding
+Comment=Opent Chrome de eerste keer dat een gebruiker aanmeldt, zodat de Google-aanmelding (en een eventuele verplichte wachtwoordwijziging) meteen volgt
+Exec=sh -c 'test -e "$HOME/.config/google-chrome/First Run" || exec google-chrome-stable'
+OnlyShowIn=GNOME;
+X-GNOME-Autostart-Phase=Applications
+NoDisplay=true
