@@ -21,6 +21,19 @@ APP_POLICY="/etc/chromium/policies/managed/coolbx-kiosk-app.json"
 HOOKS_DIR="/usr/share/coolbx/kiosk/hooks.d"
 
 APP_ID="${1:-test}"
+
+# Eén tegelijk (gevonden op hardware: drie snelle klikken op launchers → drie gelijktijdige starts, gestapelde
+# tmpfs-mounts, een sway die in de PAM-sessie-opbouw bleef hangen en een vergrendelde VT zonder kiosk).
+exec 9>/run/lock/coolbx-kiosk-start.lock
+if ! flock -n 9; then
+  echo "coolbx-kiosk-start: er wordt al een kiosk gestart" >&2; exit 0
+fi
+if systemctl is-active --quiet coolbx-kiosk || [ "$(systemctl show -p ActiveState --value coolbx-kiosk 2>/dev/null)" = "activating" ]; then
+  echo "coolbx-kiosk-start: er draait al een kiosk-sessie (eerst 'Sessie afsluiten')" >&2; exit 0
+fi
+# Resten van een vorige (abrupt gestopte) sessie opruimen; ook gestapelde mounts.
+n=0; while mountpoint -q "$KIOSK_HOME" && [ "$n" -lt 20 ]; do umount -l "$KIOSK_HOME" 2>/dev/null || break; n=$((n+1)); done
+
 if ! APP_JSON="$(/usr/bin/coolbx-kiosk-apps show "$APP_ID" --json 2>/dev/null)"; then
   echo "coolbx-kiosk-start: onbekende kiosk-app '${APP_ID}'" >&2
   exit 1
@@ -36,7 +49,6 @@ printf '%s\n' "$APP_NAME" > "$RUN_DIR/name"
 
 # Ephemeral home op tmpfs (schoon per sessie — privacy tussen leerlingen).
 mkdir -p "$KIOSK_HOME"
-mountpoint -q "$KIOSK_HOME" && umount -l "$KIOSK_HOME" 2>/dev/null || true
 mount -t tmpfs -o "mode=0700,uid=${KIOSK_USER},gid=${KIOSK_USER}" tmpfs "$KIOSK_HOME"
 
 chown "$KIOSK_USER":tty "$KIOSK_TTY" 2>/dev/null || true
@@ -111,7 +123,20 @@ systemd-run --unit=coolbx-kiosk --collect \
   --property="ExecStopPost=+/usr/bin/coolbx-kiosk-return ${RETURN_VT}" \
   /usr/bin/sway -c /usr/share/coolbx/kiosk/sway.conf
 
-sleep 1
+# Pas naar de kiosk-VT en vergrendelen als sway ECHT draait (als de kiosk-user). Blijft de sessie-opbouw
+# hangen (PAM/logind), dan stoppen we de unit weer: kiosk-return zet de VT terug — nooit een zwart,
+# vergrendeld scherm.
+ready=0
+for _ in $(seq 1 40); do
+  if pgrep -u "$KIOSK_USER" -x sway >/dev/null 2>&1; then ready=1; break; fi
+  systemctl is-active --quiet coolbx-kiosk || { [ "$(systemctl show -p ActiveState --value coolbx-kiosk)" = "activating" ] || break; }
+  sleep 0.5
+done
+if [ "$ready" != 1 ]; then
+  echo "coolbx-kiosk-start: sway kwam niet op binnen 20 s — kiosk gestopt" >&2
+  systemctl stop coolbx-kiosk 2>/dev/null || true
+  exit 1
+fi
 chvt "$VT"
 # Blokkeer VT-switch tijdens de sessie (S3): Ctrl+Alt+Fn doet niets tot de sessie eindigt.
 /usr/bin/coolbx-vt-lock lock || true

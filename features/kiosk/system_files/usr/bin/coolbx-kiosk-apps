@@ -108,6 +108,7 @@ def write_launchers(image_mode):
             f"Exec=pkexec /usr/bin/coolbx-kiosk-start {app_id}\n"
             f"Icon={icon}\n"
             "Terminal=false\n"
+            "StartupNotify=true\n"          # GNOME toont een 'bezig'-cursor tot de VT wisselt
             "Categories=Education;\n"
             "X-Coolbx-Kiosk-App=true\n"
         )

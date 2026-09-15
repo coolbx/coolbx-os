@@ -14,4 +14,6 @@ if [ -d /usr/share/coolbx/kiosk/hooks.d/post-stop ]; then
   done
 fi
 rm -f /run/coolbx-kiosk/app /run/coolbx-kiosk/name
+# Ephemeral home loskoppelen (ook als er door een race meerdere tmpfs-lagen op staan).
+n=0; while mountpoint -q /var/lib/coolbx-kiosk && [ "$n" -lt 20 ]; do umount -l /var/lib/coolbx-kiosk 2>/dev/null || break; n=$((n+1)); done
 /usr/bin/chvt "${1:-2}"
