@@ -97,14 +97,15 @@ ldap_default_bind_dn = {c["bind_user"]}
 ldap_default_authtok_type = password
 ldap_default_authtok = {c["bind_pass"]}
 
-ldap_schema = rfc2307bis
+# rfc2307 met memberUid (Google levert dat naast member-DN's): groepen worden op NAAM opgelost, zonder
+# per-lid DN-lookups. Met rfc2307bis brak één groepslid buiten de scope van de LDAP-client
+# ("Insufficient access") de hele groepsresolutie en ging SSSD offline → niemand kon aanmelden.
+ldap_schema = rfc2307
 ldap_search_base = {c["bases"][-1]}
 ldap_user_search_base = {user_bases}
 ldap_group_search_base = {c["group_base"]}
 ldap_user_email = mail
-ldap_user_member_of = memberOf
-ldap_group_member = member
-ldap_group_nesting_level = 1
+ldap_group_member = memberUid
 
 override_homedir = /home/%u
 default_shell = /bin/bash
