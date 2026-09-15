@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Schermschaal aanpassen
+Comment=Compactere GNOME-tekst op kleine panelen (tot 768 px hoog)
+Exec=/usr/libexec/coolbx-display-fit
+OnlyShowIn=GNOME;
+X-GNOME-Autostart-Phase=Initialization
+NoDisplay=true

@@ -15,4 +15,5 @@ if command -v dconf >/dev/null 2>&1; then
 fi
 echo "::endgroup::"
 
+chmod 0755 /usr/libexec/coolbx-display-fit
 echo "hardware feature installed"

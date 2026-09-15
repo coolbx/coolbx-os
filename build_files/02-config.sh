@@ -42,3 +42,4 @@ else
 fi
 
 chmod 0755 /usr/libexec/coolbx-firstboot-user.sh
+chmod 0755 /usr/libexec/coolbx-screen-class

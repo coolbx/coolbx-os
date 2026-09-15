@@ -37,9 +37,10 @@ echo "::group:: chrome: geen GNOME-keyring (wachtwoordopslag 'basic')"
 # blijft dan op het oude wachtwoord staan en Chrome vraagt bij elke start "unlock keyring". Chrome heeft de
 # keyring niet nodig (wachtwoordbeheer staat uit via beleid; cookies-sleutel gaat in een bestand) →
 # --password-store=basic in de launcher. Hetzelfde geldt voor de first-run-helper.
-sed -i 's|^Exec=/usr/bin/google-chrome-stable|Exec=/usr/bin/google-chrome-stable --password-store=basic|' \
-  /usr/share/applications/google-chrome.desktop
-grep -c -- '--password-store=basic' /usr/share/applications/google-chrome.desktop
+# De launcher gaat via /usr/libexec/coolbx-chrome (basic + schaal 0,8 op kleine panelen).
+sed -i 's|^Exec=/usr/bin/google-chrome-stable|Exec=/usr/libexec/coolbx-chrome|' /usr/share/applications/google-chrome.desktop
+chmod 0755 /usr/libexec/coolbx-chrome
+grep -c 'Exec=/usr/libexec/coolbx-chrome' /usr/share/applications/google-chrome.desktop
 echo "::endgroup::"
 
 echo "::group:: chrome: standaardbrowser"

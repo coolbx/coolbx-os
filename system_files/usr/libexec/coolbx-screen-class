@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Schermklasse van het INGEBOUWDE paneel (ADR-0035, afwerking na hardware-test 15 sep):
+#   small  = hoogte ≤ 768 px (bv. 1366x768, 13") → compactere UI (GNOME-tekst 80 %, Chrome-schaal 0,8)
+#   normal = al de rest
+# Leest de DRM-sysfs (werkt zonder sessie, ook voor de kiosk). Geen paneel gevonden → normal.
+set -u
+h=""
+for m in /sys/class/drm/card*-eDP-*/modes /sys/class/drm/card*-LVDS-*/modes /sys/class/drm/card*-DSI-*/modes; do
+  [ -r "$m" ] || continue
+  h="$(head -n1 "$m" 2>/dev/null | cut -dx -f2)"; [ -n "$h" ] && break
+done
+if [ -z "$h" ]; then
+  for m in /sys/class/drm/card*-*/modes; do [ -r "$m" ] || continue; h="$(head -n1 "$m" 2>/dev/null | cut -dx -f2)"; [ -n "$h" ] && break; done
+fi
+if [ -n "$h" ] && [ "$h" -le 768 ] 2>/dev/null; then echo small; else echo normal; fi

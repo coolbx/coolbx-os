@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Sessie-autostart: past de GNOME-tekstschaal aan het scherm aan (klein paneel → 80 %). Raakt een waarde
+# die de gebruiker zelf zette NIET aan: we onthouden wat wij zetten en wijzigen alleen als de huidige
+# waarde nog de onze (of de standaard 1.0) is.
+set -u
+[ -x /usr/libexec/coolbx-screen-class ] || exit 0
+cls="$(/usr/libexec/coolbx-screen-class)"
+want=1.0; [ "$cls" = small ] && want=0.8
+state="${XDG_CONFIG_HOME:-$HOME/.config}/coolbx/display-fit"
+cur="$(gsettings get org.gnome.desktop.interface text-scaling-factor 2>/dev/null | tr -d ' ')"
+last="$(cat "$state" 2>/dev/null || echo 1.0)"
+same() { python3 -c "import sys; sys.exit(0 if abs(float(sys.argv[1])-float(sys.argv[2]))<0.01 else 1)" "$1" "$2" 2>/dev/null; }
+if same "$cur" "$last" || same "$cur" "1.0"; then
+  same "$cur" "$want" || gsettings set org.gnome.desktop.interface text-scaling-factor "$want"
+  mkdir -p "$(dirname "$state")"; printf '%s\n' "$want" > "$state"
+fi

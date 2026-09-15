@@ -37,3 +37,11 @@ def test_role_wallpaper_when_role_feature_present(vm):
         pytest.skip("geen rol-feature in deze image")
     uri = vm.ssh("gsettings get org.gnome.desktop.background picture-uri").strip()
     assert "coolbx-paper-" in uri, uri
+
+
+def test_screen_class_and_chrome_wrapper(vm):
+    # dev-VM = 1280x800 → 'normal'; helper aanwezig; Chrome-launcher gaat via de wrapper (basic + schaal)
+    assert vm.ssh("/usr/libexec/coolbx-screen-class").strip() == "normal"
+    if vm.ssh_ok("test -f /usr/share/applications/google-chrome.desktop"):
+        assert vm.ssh_ok("grep -q '^Exec=/usr/libexec/coolbx-chrome' /usr/share/applications/google-chrome.desktop")
+    assert vm.ssh_ok("test -x /usr/libexec/coolbx-display-fit && test -f /etc/xdg/autostart/coolbx-display-fit.desktop")

@@ -36,6 +36,10 @@ while [ "$n" -lt 10 ]; do
 
   GPU_FLAGS=()
   [ "${COOLBX_KIOSK_SW_RENDER:-0}" = "1" ] && GPU_FLAGS+=(--disable-gpu)
+  # Kleine panelen (≤768 px hoog): zelfde schaal als de desktop-Chrome (meer pagina op 1366x768).
+  if [ -x /usr/libexec/coolbx-screen-class ] && [ "$(/usr/libexec/coolbx-screen-class)" = small ]; then
+    GPU_FLAGS+=(--force-device-scale-factor=0.8)
+  fi
 
   start=$SECONDS
   "$BIN" \

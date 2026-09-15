@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Chrome-starter van Coolbx OS: geen GNOME-keyring (basic), en op kleine panelen schaal 0,8 (meer pagina
+# op 1366x768, zoals een Chromebook). Gebruikt door de launcher, de first-run-autostart en de kiosk.
+set -u
+flags=(--password-store=basic)
+if [ -x /usr/libexec/coolbx-screen-class ] && [ "$(/usr/libexec/coolbx-screen-class)" = small ]; then
+  flags+=(--force-device-scale-factor=0.8)
+fi
+exec /usr/bin/google-chrome-stable "${flags[@]}" "$@"
